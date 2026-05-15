@@ -1,0 +1,12 @@
+[workspace]
+members = ["program"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+pinocchio = "0.8"
+pinocchio-pubkey = "0.3"
+shank = "0.4.5"

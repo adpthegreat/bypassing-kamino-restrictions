@@ -1,0 +1,22 @@
+[package]
+name = "kamino-juplend-refinance"
+version = { workspace = true }
+edition = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "kamino_juplend_refinance"
+
+[dependencies]
+pinocchio = { workspace = true }
+pinocchio-pubkey = { workspace = true }
+shank = { workspace = true, optional = true }
+
+[profile.release]
+overflow-checks = true
+lto = "fat"
+codegen-units = 1
+
+[features]
+no-entrypoint = []
+idl = ["shank"]

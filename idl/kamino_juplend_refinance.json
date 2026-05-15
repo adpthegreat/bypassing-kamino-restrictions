@@ -1,0 +1,72 @@
+{
+  "version": "0.1.0",
+  "name": "kamino_juplend_refinance",
+  "instructions": [
+    {
+      "name": "RefinanceKaminoToJupiter",
+      "accounts": [],
+      "args": [
+        {
+          "name": "kaminoRepayAccountCount",
+          "type": "u16"
+        },
+        {
+          "name": "kaminoWithdrawAccountCount",
+          "type": "u16"
+        },
+        {
+          "name": "juplendAccountCount",
+          "type": "u16"
+        },
+        {
+          "name": "juplendIndices",
+          "type": {
+            "array": [
+              "u8",
+              3
+            ]
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 0
+      }
+    },
+    {
+      "name": "RefinanceJupiterToKamino",
+      "accounts": [],
+      "args": [
+        {
+          "name": "juplendAccountCount",
+          "type": "u16"
+        },
+        {
+          "name": "kaminoDepositAccountCount",
+          "type": "u16"
+        },
+        {
+          "name": "kaminoBorrowAccountCount",
+          "type": "u16"
+        },
+        {
+          "name": "juplendIndices",
+          "type": {
+            "array": [
+              "u8",
+              3
+            ]
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 1
+      }
+    }
+  ],
+  "metadata": {
+    "origin": "shank",
+    "address": "11111111111111111111111111111111"
+  }
+}
