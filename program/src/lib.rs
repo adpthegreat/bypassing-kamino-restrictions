@@ -7,6 +7,10 @@ pub mod instructions;
 pub mod entrypoint;
 
 use core::mem::MaybeUninit;
+use pinocchio::pubkey::Pubkey;
+
+pub const ID: Pubkey =
+    pinocchio_pubkey::pubkey!("Gr4ofKMU4AFW9hpR1dYxbVBHjvXDw9d6LYpCscTc3xMD");
 
 pub(crate) const UNINIT_BYTE: MaybeUninit<u8> = MaybeUninit::<u8>::uninit();
 
