@@ -16,20 +16,20 @@ use crate::{
 
 pub const KAMINO_LEND_PROGRAM_ID: Pubkey =
     pinocchio_pubkey::pubkey!("KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD");
+pub const FLAG_HAS_COLLATERAL: u8 = 1 << 0;
+pub const FLAG_HAS_BORROWS: u8 = 1 << 1;
 
-const DISC_REFRESH_RESERVE: [u8; 8]                  = [2, 218, 138, 235, 79, 201, 25, 102];
-const DISC_REFRESH_OBLIGATION: [u8; 8]               = [33, 132, 147, 228, 151, 192, 72, 89];
-const DISC_INIT_USER_METADATA: [u8; 8]               = [117, 169, 176, 69, 197, 23, 15, 162];
-const DISC_INIT_OBLIGATION: [u8; 8]                  = [251, 10, 231, 76, 27, 11, 159, 96];
-const DISC_INIT_OBLIGATION_FARMS: [u8; 8]            = [136, 63, 15, 186, 211, 152, 168, 164];
-const DISC_DEPOSIT_RESERVE_LIQUIDITY_V2: [u8; 8]     = [216, 224, 191, 27, 204, 151, 102, 175];
+const DISC_REFRESH_RESERVE: [u8; 8] = [2, 218, 138, 235, 79, 201, 25, 102];
+const DISC_REFRESH_OBLIGATION: [u8; 8] = [33, 132, 147, 228, 151, 192, 72, 89];
+const DISC_INIT_USER_METADATA: [u8; 8] = [117, 169, 176, 69, 197, 23, 15, 162];
+const DISC_INIT_OBLIGATION: [u8; 8] = [251, 10, 231, 76, 27, 11, 159, 96];
+const DISC_INIT_OBLIGATION_FARMS: [u8; 8] = [136, 63, 15, 186, 211, 152, 168, 164];
+const DISC_DEPOSIT_RESERVE_LIQUIDITY_V2: [u8; 8] = [216, 224, 191, 27, 204, 151, 102, 175];
 const DISC_WITHDRAW_OBLIGATION_COLLATERAL_V2: [u8; 8] = [235, 52, 119, 152, 149, 197, 20, 7];
-const DISC_BORROW_OBLIGATION_LIQUIDITY_V2: [u8; 8]   = [161, 128, 143, 245, 171, 199, 194, 6];
-const DISC_REPAY_OBLIGATION_LIQUIDITY_V2: [u8; 8]    = [116, 174, 213, 76, 180, 53, 210, 144];
+const DISC_BORROW_OBLIGATION_LIQUIDITY_V2: [u8; 8] = [161, 128, 143, 245, 171, 199, 194, 6];
+const DISC_REPAY_OBLIGATION_LIQUIDITY_V2: [u8; 8] = [116, 174, 213, 76, 180, 53, 210, 144];
 
 pub struct Kamino;
-
-// ─── Init accounts ────────────────────────────────────────────────────────────
 
 /// Accounts required to initialise a Kamino position.
 ///
@@ -84,9 +84,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for KaminoInitAccounts<'info> {
     }
 }
 
-// ─── Deposit accounts ─────────────────────────────────────────────────────────
-
-/// Accounts for Kamino deposit (18+ accounts):
+/// Accounts for Kamino deposit (20+ accounts):
 ///  [0]  kamino_lending_program
 ///  [1]  owner (signer)
 ///  [2]  obligation
@@ -105,7 +103,9 @@ impl<'info> TryFrom<&'info [AccountInfo]> for KaminoInitAccounts<'info> {
 ///  [15] reserve_farm_state
 ///  [16] farms_program
 ///  [17] scope_oracle
-///  [18..] reserve_accounts (extra reserves already in obligation)
+///  [18] borrow_reserve
+///  [19] scope_oracle_borrow
+///  [20..] reserve_accounts (unused compatibility tail)
 pub struct KaminoDepositAccounts<'info> {
     pub kamino_lending_program: &'info AccountInfo,
     pub owner: &'info AccountInfo,
@@ -125,13 +125,15 @@ pub struct KaminoDepositAccounts<'info> {
     pub reserve_farm_state: &'info AccountInfo,
     pub farms_program: &'info AccountInfo,
     pub scope_oracle: &'info AccountInfo,
+    pub borrow_reserve: &'info AccountInfo,
+    pub scope_oracle_borrow: &'info AccountInfo,
     pub reserve_accounts: &'info [AccountInfo],
 }
 
 impl<'info> TryFrom<&'info [AccountInfo]> for KaminoDepositAccounts<'info> {
     type Error = ProgramError;
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        if accounts.len() < 18 {
+        if accounts.len() < 20 {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
         Ok(Self {
@@ -153,7 +155,9 @@ impl<'info> TryFrom<&'info [AccountInfo]> for KaminoDepositAccounts<'info> {
             reserve_farm_state: &accounts[15],
             farms_program: &accounts[16],
             scope_oracle: &accounts[17],
-            reserve_accounts: &accounts[18..],
+            borrow_reserve: &accounts[18],
+            scope_oracle_borrow: &accounts[19],
+            reserve_accounts: &accounts[20..],
         })
     }
 }
@@ -299,8 +303,7 @@ impl<'info> TryFrom<&'info [AccountInfo]> for KaminoRepayAccounts<'info> {
     }
 }
 
-
-/// Accounts for Kamino withdraw (18+ accounts):
+/// Accounts for Kamino withdraw (20+ accounts):
 ///  [0]  kamino_lending_program
 ///  [1]  owner
 ///  [2]  obligation
@@ -319,7 +322,9 @@ impl<'info> TryFrom<&'info [AccountInfo]> for KaminoRepayAccounts<'info> {
 ///  [15] reserve_farm_state
 ///  [16] farms_program
 ///  [17] scope_oracle
-///  [18..] reserve_accounts
+///  [18] borrow_reserve
+///  [19] scope_oracle_borrow
+///  [20..] reserve_accounts
 pub struct KaminoWithdrawAccounts<'info> {
     pub kamino_lending_program: &'info AccountInfo,
     pub owner: &'info AccountInfo,
@@ -339,13 +344,15 @@ pub struct KaminoWithdrawAccounts<'info> {
     pub reserve_farm_state: &'info AccountInfo,
     pub farms_program: &'info AccountInfo,
     pub scope_oracle: &'info AccountInfo,
+    pub borrow_reserve: &'info AccountInfo,
+    pub scope_oracle_borrow: &'info AccountInfo,
     pub reserve_accounts: &'info [AccountInfo],
 }
 
 impl<'info> TryFrom<&'info [AccountInfo]> for KaminoWithdrawAccounts<'info> {
     type Error = ProgramError;
     fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        if accounts.len() < 18 {
+        if accounts.len() < 20 {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
         Ok(Self {
@@ -367,11 +374,12 @@ impl<'info> TryFrom<&'info [AccountInfo]> for KaminoWithdrawAccounts<'info> {
             reserve_farm_state: &accounts[15],
             farms_program: &accounts[16],
             scope_oracle: &accounts[17],
-            reserve_accounts: &accounts[18..],
+            borrow_reserve: &accounts[18],
+            scope_oracle_borrow: &accounts[19],
+            reserve_accounts: &accounts[20..],
         })
     }
 }
-
 
 pub fn refresh_reserve<'a>(
     reserve: &'a AccountInfo,
@@ -384,9 +392,18 @@ pub fn refresh_reserve<'a>(
         [
             (reserve, AccountMeta::writable(reserve.key())),
             (lending_market, AccountMeta::readonly(lending_market.key())),
-            (kamino_lending_program, AccountMeta::readonly(kamino_lending_program.key())),
-            (kamino_lending_program, AccountMeta::readonly(kamino_lending_program.key())),
-            (kamino_lending_program, AccountMeta::readonly(kamino_lending_program.key())),
+            (
+                kamino_lending_program,
+                AccountMeta::readonly(kamino_lending_program.key()),
+            ),
+            (
+                kamino_lending_program,
+                AccountMeta::readonly(kamino_lending_program.key()),
+            ),
+            (
+                kamino_lending_program,
+                AccountMeta::readonly(kamino_lending_program.key()),
+            ),
             (scope_oracle, AccountMeta::readonly(scope_oracle.key())),
         ],
         &DISC_REFRESH_RESERVE,
@@ -401,8 +418,7 @@ pub fn refresh_obligation_with_reserves<'a>(
     signers: &[Signer],
 ) -> ProgramResult {
     const MAX: usize = 18;
-    let mut metas: [MaybeUninit<AccountMeta>; MAX] =
-        unsafe { MaybeUninit::uninit().assume_init() };
+    let mut metas: [MaybeUninit<AccountMeta>; MAX] = unsafe { MaybeUninit::uninit().assume_init() };
     let mut infos: [MaybeUninit<&AccountInfo>; MAX] =
         unsafe { MaybeUninit::uninit().assume_init() };
 
@@ -435,6 +451,36 @@ pub fn refresh_obligation_with_reserves<'a>(
     )
 }
 
+pub fn refresh_obligation<'a>(
+    lending_market: &'a AccountInfo,
+    obligation: &'a AccountInfo,
+    collateral_reserve: &'a AccountInfo,
+    borrow_reserve: Option<&'a AccountInfo>,
+    flags: u8,
+    signers: &[Signer],
+) -> ProgramResult {
+    let mut reserve_infos: [MaybeUninit<&AccountInfo>; 2] =
+        unsafe { MaybeUninit::uninit().assume_init() };
+    let mut count = 0usize;
+
+    if flags & FLAG_HAS_COLLATERAL != 0 {
+        reserve_infos[count].write(collateral_reserve);
+        count += 1;
+    }
+
+    if flags & FLAG_HAS_BORROWS != 0 {
+        if let Some(reserve) = borrow_reserve {
+            reserve_infos[count].write(reserve);
+            count += 1;
+        }
+    }
+
+    let reserve_slice: &[&AccountInfo] =
+        unsafe { from_raw_parts(reserve_infos.as_ptr() as *const &AccountInfo, count) };
+
+    refresh_obligation_with_reserves(lending_market, obligation, reserve_slice, signers)
+}
+
 fn init_user_metadata<'a>(
     signer: &'a AccountInfo,
     user_metadata: &'a AccountInfo,
@@ -453,7 +499,10 @@ fn init_user_metadata<'a>(
             (signer, AccountMeta::readonly_signer(signer.key())),
             (signer, AccountMeta::writable_signer(signer.key())),
             (user_metadata, AccountMeta::writable(user_metadata.key())),
-            (kamino_lending_program, AccountMeta::readonly(kamino_lending_program.key())),
+            (
+                kamino_lending_program,
+                AccountMeta::readonly(kamino_lending_program.key()),
+            ),
             (rent, AccountMeta::readonly(rent.key())),
             (system_program, AccountMeta::readonly(system_program.key())),
         ],
@@ -518,10 +567,19 @@ fn init_obligation_farms<'a>(
             (signer, AccountMeta::writable_signer(signer.key())),
             (signer, AccountMeta::readonly(signer.key())),
             (obligation, AccountMeta::writable(obligation.key())),
-            (lending_market_authority, AccountMeta::readonly(lending_market_authority.key())),
+            (
+                lending_market_authority,
+                AccountMeta::readonly(lending_market_authority.key()),
+            ),
             (reserve, AccountMeta::writable(reserve.key())),
-            (reserve_farm_state, AccountMeta::writable(reserve_farm_state.key())),
-            (obligation_farm_state, AccountMeta::writable(obligation_farm_state.key())),
+            (
+                reserve_farm_state,
+                AccountMeta::writable(reserve_farm_state.key()),
+            ),
+            (
+                obligation_farm_state,
+                AccountMeta::writable(obligation_farm_state.key()),
+            ),
             (lending_market, AccountMeta::readonly(lending_market.key())),
             (farms_program, AccountMeta::readonly(farms_program.key())),
             (rent, AccountMeta::readonly(rent.key())),
@@ -564,19 +622,55 @@ pub fn deposit_collateral<'a>(
             (owner, AccountMeta::writable_signer(owner.key())),
             (obligation, AccountMeta::writable(obligation.key())),
             (lending_market, AccountMeta::readonly(lending_market.key())),
-            (lending_market_authority, AccountMeta::readonly(lending_market_authority.key())),
+            (
+                lending_market_authority,
+                AccountMeta::readonly(lending_market_authority.key()),
+            ),
             (reserve, AccountMeta::writable(reserve.key())),
-            (reserve_liquidity_mint, AccountMeta::readonly(reserve_liquidity_mint.key())),
-            (reserve_liquidity_supply, AccountMeta::writable(reserve_liquidity_supply.key())),
-            (reserve_collateral_mint, AccountMeta::writable(reserve_collateral_mint.key())),
-            (reserve_destination_deposit_collateral, AccountMeta::writable(reserve_destination_deposit_collateral.key())),
-            (user_source_liquidity, AccountMeta::writable(user_source_liquidity.key())),
-            (kamino_lending_program, AccountMeta::readonly(kamino_lending_program.key())),
-            (collateral_token_program, AccountMeta::readonly(collateral_token_program.key())),
-            (liquidity_token_program, AccountMeta::readonly(liquidity_token_program.key())),
-            (instruction_sysvar_account, AccountMeta::readonly(instruction_sysvar_account.key())),
-            (obligation_farm_user_state, AccountMeta::writable(obligation_farm_user_state.key())),
-            (reserve_farm_state, AccountMeta::writable(reserve_farm_state.key())),
+            (
+                reserve_liquidity_mint,
+                AccountMeta::readonly(reserve_liquidity_mint.key()),
+            ),
+            (
+                reserve_liquidity_supply,
+                AccountMeta::writable(reserve_liquidity_supply.key()),
+            ),
+            (
+                reserve_collateral_mint,
+                AccountMeta::writable(reserve_collateral_mint.key()),
+            ),
+            (
+                reserve_destination_deposit_collateral,
+                AccountMeta::writable(reserve_destination_deposit_collateral.key()),
+            ),
+            (
+                user_source_liquidity,
+                AccountMeta::writable(user_source_liquidity.key()),
+            ),
+            (
+                kamino_lending_program,
+                AccountMeta::readonly(kamino_lending_program.key()),
+            ),
+            (
+                collateral_token_program,
+                AccountMeta::readonly(collateral_token_program.key()),
+            ),
+            (
+                liquidity_token_program,
+                AccountMeta::readonly(liquidity_token_program.key()),
+            ),
+            (
+                instruction_sysvar_account,
+                AccountMeta::readonly(instruction_sysvar_account.key()),
+            ),
+            (
+                obligation_farm_user_state,
+                AccountMeta::writable(obligation_farm_user_state.key()),
+            ),
+            (
+                reserve_farm_state,
+                AccountMeta::writable(reserve_farm_state.key()),
+            ),
             (farms_program, AccountMeta::readonly(farms_program.key())),
         ],
         unsafe { from_raw_parts(data.as_ptr() as *const u8, 16) },
@@ -614,18 +708,42 @@ pub fn borrow_from_reserve<'a>(
             (owner, AccountMeta::readonly_signer(owner.key())),
             (obligation, AccountMeta::writable(obligation.key())),
             (lending_market, AccountMeta::readonly(lending_market.key())),
-            (lending_market_authority, AccountMeta::readonly(lending_market_authority.key())),
+            (
+                lending_market_authority,
+                AccountMeta::readonly(lending_market_authority.key()),
+            ),
             (borrow_reserve, AccountMeta::writable(borrow_reserve.key())),
             (output_mint, AccountMeta::readonly(output_mint.key())),
-            (reserve_borrow_supply, AccountMeta::writable(reserve_borrow_supply.key())),
-            (borrow_reserve_liquidity_fee_receiver, AccountMeta::writable(borrow_reserve_liquidity_fee_receiver.key())),
-            (user_borrow_destination, AccountMeta::writable(user_borrow_destination.key())),
+            (
+                reserve_borrow_supply,
+                AccountMeta::writable(reserve_borrow_supply.key()),
+            ),
+            (
+                borrow_reserve_liquidity_fee_receiver,
+                AccountMeta::writable(borrow_reserve_liquidity_fee_receiver.key()),
+            ),
+            (
+                user_borrow_destination,
+                AccountMeta::writable(user_borrow_destination.key()),
+            ),
             // referrerTokenState: kamino_lending_program as the no-referrer sentinel (readonly).
-            (kamino_lending_program, AccountMeta::readonly(kamino_lending_program.key())),
+            (
+                kamino_lending_program,
+                AccountMeta::readonly(kamino_lending_program.key()),
+            ),
             (token_program, AccountMeta::readonly(token_program.key())),
-            (instruction_sysvar_account, AccountMeta::readonly(instruction_sysvar_account.key())),
-            (borrow_obligation_farm_state, AccountMeta::writable(borrow_obligation_farm_state.key())),
-            (borrow_reserve_farm_state, AccountMeta::writable(borrow_reserve_farm_state.key())),
+            (
+                instruction_sysvar_account,
+                AccountMeta::readonly(instruction_sysvar_account.key()),
+            ),
+            (
+                borrow_obligation_farm_state,
+                AccountMeta::writable(borrow_obligation_farm_state.key()),
+            ),
+            (
+                borrow_reserve_farm_state,
+                AccountMeta::writable(borrow_reserve_farm_state.key()),
+            ),
             (farms_program, AccountMeta::readonly(farms_program.key())),
         ],
         unsafe { from_raw_parts(data.as_ptr() as *const u8, 16) },
@@ -663,13 +781,31 @@ pub fn repay_debt<'a>(
             (lending_market, AccountMeta::readonly(lending_market.key())),
             (borrow_reserve, AccountMeta::writable(borrow_reserve.key())),
             (output_mint, AccountMeta::readonly(output_mint.key())),
-            (reserve_borrow_supply, AccountMeta::writable(reserve_borrow_supply.key())),
-            (user_source_liquidity, AccountMeta::writable(user_source_liquidity.key())),
+            (
+                reserve_borrow_supply,
+                AccountMeta::writable(reserve_borrow_supply.key()),
+            ),
+            (
+                user_source_liquidity,
+                AccountMeta::writable(user_source_liquidity.key()),
+            ),
             (token_program, AccountMeta::readonly(token_program.key())),
-            (instruction_sysvar_account, AccountMeta::readonly(instruction_sysvar_account.key())),
-            (borrow_obligation_farm_state, AccountMeta::writable(borrow_obligation_farm_state.key())),
-            (borrow_reserve_farm_state, AccountMeta::writable(borrow_reserve_farm_state.key())),
-            (lending_market_authority, AccountMeta::readonly(lending_market_authority.key())),
+            (
+                instruction_sysvar_account,
+                AccountMeta::readonly(instruction_sysvar_account.key()),
+            ),
+            (
+                borrow_obligation_farm_state,
+                AccountMeta::writable(borrow_obligation_farm_state.key()),
+            ),
+            (
+                borrow_reserve_farm_state,
+                AccountMeta::writable(borrow_reserve_farm_state.key()),
+            ),
+            (
+                lending_market_authority,
+                AccountMeta::readonly(lending_market_authority.key()),
+            ),
             (farms_program, AccountMeta::readonly(farms_program.key())),
         ],
         unsafe { from_raw_parts(data.as_ptr() as *const u8, 16) },
@@ -709,19 +845,58 @@ pub fn withdraw_collateral<'a>(
             (owner, AccountMeta::writable_signer(owner.key())),
             (obligation, AccountMeta::writable(obligation.key())),
             (lending_market, AccountMeta::readonly(lending_market.key())),
-            (lending_market_authority, AccountMeta::readonly(lending_market_authority.key())),
-            (withdraw_reserve, AccountMeta::writable(withdraw_reserve.key())),
-            (reserve_liquidity_mint, AccountMeta::readonly(reserve_liquidity_mint.key())),
-            (reserve_source_collateral, AccountMeta::writable(reserve_source_collateral.key())),
-            (reserve_collateral_mint, AccountMeta::writable(reserve_collateral_mint.key())),
-            (reserve_liquidity_supply, AccountMeta::writable(reserve_liquidity_supply.key())),
-            (user_destination_liquidity, AccountMeta::writable(user_destination_liquidity.key())),
-            (kamino_lending_program, AccountMeta::readonly(kamino_lending_program.key())),
-            (collateral_token_program, AccountMeta::readonly(collateral_token_program.key())),
-            (liquidity_token_program, AccountMeta::readonly(liquidity_token_program.key())),
-            (instruction_sysvar_account, AccountMeta::readonly(instruction_sysvar_account.key())),
-            (obligation_farm_user_state, AccountMeta::writable(obligation_farm_user_state.key())),
-            (reserve_farm_state, AccountMeta::writable(reserve_farm_state.key())),
+            (
+                lending_market_authority,
+                AccountMeta::readonly(lending_market_authority.key()),
+            ),
+            (
+                withdraw_reserve,
+                AccountMeta::writable(withdraw_reserve.key()),
+            ),
+            (
+                reserve_liquidity_mint,
+                AccountMeta::readonly(reserve_liquidity_mint.key()),
+            ),
+            (
+                reserve_source_collateral,
+                AccountMeta::writable(reserve_source_collateral.key()),
+            ),
+            (
+                reserve_collateral_mint,
+                AccountMeta::writable(reserve_collateral_mint.key()),
+            ),
+            (
+                reserve_liquidity_supply,
+                AccountMeta::writable(reserve_liquidity_supply.key()),
+            ),
+            (
+                user_destination_liquidity,
+                AccountMeta::writable(user_destination_liquidity.key()),
+            ),
+            (
+                kamino_lending_program,
+                AccountMeta::readonly(kamino_lending_program.key()),
+            ),
+            (
+                collateral_token_program,
+                AccountMeta::readonly(collateral_token_program.key()),
+            ),
+            (
+                liquidity_token_program,
+                AccountMeta::readonly(liquidity_token_program.key()),
+            ),
+            (
+                instruction_sysvar_account,
+                AccountMeta::readonly(instruction_sysvar_account.key()),
+            ),
+            (
+                obligation_farm_user_state,
+                AccountMeta::writable(obligation_farm_user_state.key()),
+            ),
+            (
+                reserve_farm_state,
+                AccountMeta::writable(reserve_farm_state.key()),
+            ),
             (farms_program, AccountMeta::readonly(farms_program.key())),
         ],
         unsafe { from_raw_parts(data.as_ptr() as *const u8, 16) },
@@ -782,17 +957,20 @@ impl<'info> Initialize<'info> for Kamino {
     }
 }
 
-/// Deposit: refresh reserve + extra reserves + obligation, then deposit.
+/// Deposit: refresh collateral reserve, optionally refresh the existing borrow
+/// reserve, then refresh obligation and deposit.
 impl<'info> Deposit<'info> for Kamino {
     type Accounts = KaminoDepositAccounts<'info>;
-    type Data = ();
+    type Data = u8;
 
     fn deposit_signed(
         ctx: &Self::Accounts,
         amount: u64,
-        _data: &Self::Data,
+        flags: &Self::Data,
         signer_seeds: &[Signer],
     ) -> ProgramResult {
+        let flags = *flags;
+
         refresh_reserve(
             ctx.reserve,
             ctx.lending_market,
@@ -800,20 +978,23 @@ impl<'info> Deposit<'info> for Kamino {
             ctx.kamino_lending_program,
         )?;
 
-        for r in ctx.reserve_accounts {
-            refresh_reserve(r, ctx.lending_market, ctx.scope_oracle, ctx.kamino_lending_program)?;
+        if flags & FLAG_HAS_COLLATERAL != 0 {
+            refresh_reserve(
+                ctx.borrow_reserve,
+                ctx.lending_market,
+                ctx.scope_oracle_borrow,
+                ctx.kamino_lending_program,
+            )?;
         }
 
-        let mut reserve_infos: [MaybeUninit<&AccountInfo>; 16] =
-            unsafe { MaybeUninit::uninit().assume_init() };
-        let extra_count = ctx.reserve_accounts.len().min(16);
-        for i in 0..extra_count {
-            reserve_infos[i].write(&ctx.reserve_accounts[i]);
-        }
-        let reserve_slice: &[&AccountInfo] =
-            unsafe { from_raw_parts(reserve_infos.as_ptr() as *const &AccountInfo, extra_count) };
-
-        refresh_obligation_with_reserves(ctx.lending_market, ctx.obligation, reserve_slice, &[])?;
+        refresh_obligation(
+            ctx.lending_market,
+            ctx.obligation,
+            ctx.reserve,
+            Some(ctx.borrow_reserve),
+            flags,
+            &[],
+        )?;
 
         deposit_collateral(
             ctx.owner,
@@ -842,20 +1023,24 @@ impl<'info> Deposit<'info> for Kamino {
 /// Borrow: refresh collateral + borrow reserves + obligation, then borrow.
 impl<'info> Borrow<'info> for Kamino {
     type Accounts = KaminoBorrowAccounts<'info>;
-    type Data = ();
+    type Data = u8;
 
     fn borrow_signed(
         ctx: &Self::Accounts,
         amount: u64,
-        _data: &Self::Data,
+        flags: &Self::Data,
         signer_seeds: &[Signer],
     ) -> ProgramResult {
-        refresh_reserve(
-            ctx.collateral_reserve,
-            ctx.lending_market,
-            ctx.scope_oracle_collateral,
-            ctx.kamino_lending_program,
-        )?;
+        let flags = *flags;
+
+        if flags & FLAG_HAS_COLLATERAL != 0 {
+            refresh_reserve(
+                ctx.collateral_reserve,
+                ctx.lending_market,
+                ctx.scope_oracle_collateral,
+                ctx.kamino_lending_program,
+            )?;
+        }
 
         refresh_reserve(
             ctx.borrow_reserve,
@@ -864,16 +1049,14 @@ impl<'info> Borrow<'info> for Kamino {
             ctx.kamino_lending_program,
         )?;
 
-        let mut reserve_infos: [MaybeUninit<&AccountInfo>; 16] =
-            unsafe { MaybeUninit::uninit().assume_init() };
-        let extra_count = ctx.reserve_accounts.len().min(16);
-        for i in 0..extra_count {
-            reserve_infos[i].write(&ctx.reserve_accounts[i]);
-        }
-        let reserve_slice: &[&AccountInfo] =
-            unsafe { from_raw_parts(reserve_infos.as_ptr() as *const &AccountInfo, extra_count) };
-
-        refresh_obligation_with_reserves(ctx.lending_market, ctx.obligation, reserve_slice, &[])?;
+        refresh_obligation(
+            ctx.lending_market,
+            ctx.obligation,
+            ctx.collateral_reserve,
+            Some(ctx.borrow_reserve),
+            flags,
+            &[],
+        )?;
 
         borrow_from_reserve(
             ctx.owner,
@@ -900,20 +1083,24 @@ impl<'info> Borrow<'info> for Kamino {
 /// Repay: refresh collateral + borrow reserves + obligation, then repay.
 impl<'info> Repay<'info> for Kamino {
     type Accounts = KaminoRepayAccounts<'info>;
-    type Data = ();
+    type Data = u8;
 
     fn repay_signed(
         ctx: &Self::Accounts,
         amount: u64,
-        _data: &Self::Data,
+        flags: &Self::Data,
         signer_seeds: &[Signer],
     ) -> ProgramResult {
-        refresh_reserve(
-            ctx.collateral_reserve,
-            ctx.lending_market,
-            ctx.scope_oracle_collateral,
-            ctx.kamino_lending_program,
-        )?;
+        let flags = *flags;
+
+        if flags & FLAG_HAS_COLLATERAL != 0 {
+            refresh_reserve(
+                ctx.collateral_reserve,
+                ctx.lending_market,
+                ctx.scope_oracle_collateral,
+                ctx.kamino_lending_program,
+            )?;
+        }
 
         refresh_reserve(
             ctx.borrow_reserve,
@@ -922,19 +1109,12 @@ impl<'info> Repay<'info> for Kamino {
             ctx.kamino_lending_program,
         )?;
 
-        let mut reserve_infos: [MaybeUninit<&AccountInfo>; 16] =
-            unsafe { MaybeUninit::uninit().assume_init() };
-        let extra_count = ctx.reserve_accounts.len().min(16);
-        for i in 0..extra_count {
-            reserve_infos[i].write(&ctx.reserve_accounts[i]);
-        }
-        let reserve_slice: &[&AccountInfo] =
-            unsafe { from_raw_parts(reserve_infos.as_ptr() as *const &AccountInfo, extra_count) };
-
-        refresh_obligation_with_reserves(
+        refresh_obligation(
             ctx.lending_market,
             ctx.obligation,
-            reserve_slice,
+            ctx.collateral_reserve,
+            Some(ctx.borrow_reserve),
+            flags,
             signer_seeds,
         )?;
 
@@ -958,17 +1138,20 @@ impl<'info> Repay<'info> for Kamino {
     }
 }
 
-/// Withdraw: refresh withdraw reserve + extra reserves + obligation, then withdraw.
+/// Withdraw: refresh the withdraw reserve, optionally refresh the borrow reserve,
+/// then refresh obligation and withdraw.
 impl<'info> Withdraw<'info> for Kamino {
     type Accounts = KaminoWithdrawAccounts<'info>;
-    type Data = ();
+    type Data = u8;
 
     fn withdraw_signed(
         ctx: &Self::Accounts,
         amount: u64,
-        _data: &Self::Data,
+        flags: &Self::Data,
         signer_seeds: &[Signer],
     ) -> ProgramResult {
+        let flags = *flags;
+
         refresh_reserve(
             ctx.withdraw_reserve,
             ctx.lending_market,
@@ -976,23 +1159,21 @@ impl<'info> Withdraw<'info> for Kamino {
             ctx.kamino_lending_program,
         )?;
 
-        for r in ctx.reserve_accounts {
-            refresh_reserve(r, ctx.lending_market, ctx.scope_oracle, ctx.kamino_lending_program)?;
+        if flags & FLAG_HAS_BORROWS != 0 {
+            refresh_reserve(
+                ctx.borrow_reserve,
+                ctx.lending_market,
+                ctx.scope_oracle_borrow,
+                ctx.kamino_lending_program,
+            )?;
         }
 
-        let mut reserve_infos: [MaybeUninit<&AccountInfo>; 16] =
-            unsafe { MaybeUninit::uninit().assume_init() };
-        let extra_count = ctx.reserve_accounts.len().min(16);
-        for i in 0..extra_count {
-            reserve_infos[i].write(&ctx.reserve_accounts[i]);
-        }
-        let reserve_slice: &[&AccountInfo] =
-            unsafe { from_raw_parts(reserve_infos.as_ptr() as *const &AccountInfo, extra_count) };
-
-        refresh_obligation_with_reserves(
+        refresh_obligation(
             ctx.lending_market,
             ctx.obligation,
-            reserve_slice,
+            ctx.withdraw_reserve,
+            Some(ctx.borrow_reserve),
+            flags,
             signer_seeds,
         )?;
 
