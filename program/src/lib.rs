@@ -1,6 +1,7 @@
 #[cfg(feature = "idl")]
 pub mod instructions;
 pub mod protocols;
+pub mod refinance;
 pub mod traits;
 
 #[cfg(not(feature = "no-entrypoint"))]

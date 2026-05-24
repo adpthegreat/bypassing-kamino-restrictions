@@ -4,14 +4,8 @@ use pinocchio::{
 };
 
 use crate::{
-    protocols::{
-        juplend::{JupiterInitAccounts, JupiterLend, JupiterOperateAccounts},
-        kamino::{
-            Kamino, KaminoBorrowAccounts, KaminoDepositAccounts, KaminoInitAccounts,
-            KaminoRepayAccounts, KaminoWithdrawAccounts,
-        },
-    },
-    traits::{Borrow, Deposit, Initialize, Repay, Withdraw},
+    protocols::{juplend, kamino},
+    refinance,
 };
 
 entrypoint!(process_instruction);
@@ -55,188 +49,18 @@ pub fn process_instruction(
     let data = &instruction_data[1..];
 
     match disc {
-        INIT_KAMINO => process_init_kamino(accounts, data),
-        INIT_JUPITER_LEND => process_init_juplend(accounts, data),
-        DEPOSIT_KAMINO => process_deposit_kamino(accounts, data),
-        BORROW_KAMINO => process_borrow_kamino(accounts, data),
-        REPAY_KAMINO => process_repay_kamino(accounts, data),
-        WITHDRAW_KAMINO => process_withdraw_kamino(accounts, data),
-        DEPOSIT_JUPLEND => process_deposit_juplend(accounts, data),
-        BORROW_JUPLEND => process_borrow_juplend(accounts, data),
-        REPAY_JUPLEND => process_repay_juplend(accounts, data),
-        WITHDRAW_JUPLEND => process_withdraw_juplend(accounts, data),
-        REFINANCE_KAMINO_TO_JUP => process_refinance_kamino_to_jup(accounts, data),
-        REFINANCE_JUP_TO_KAMINO => process_refinance_jup_to_kamino(accounts, data),
+        INIT_KAMINO => kamino::processor::process_init(accounts, data),
+        INIT_JUPITER_LEND => juplend::processor::process_init(accounts, data),
+        DEPOSIT_KAMINO => kamino::processor::process_deposit(accounts, data),
+        BORROW_KAMINO => kamino::processor::process_borrow(accounts, data),
+        REPAY_KAMINO => kamino::processor::process_repay(accounts, data),
+        WITHDRAW_KAMINO => kamino::processor::process_withdraw(accounts, data),
+        DEPOSIT_JUPLEND => juplend::processor::process_deposit(accounts, data),
+        BORROW_JUPLEND => juplend::processor::process_borrow(accounts, data),
+        REPAY_JUPLEND => juplend::processor::process_repay(accounts, data),
+        WITHDRAW_JUPLEND => juplend::processor::process_withdraw(accounts, data),
+        REFINANCE_KAMINO_TO_JUP => refinance::process_kamino_to_jupiter(accounts, data),
+        REFINANCE_JUP_TO_KAMINO => refinance::process_jupiter_to_kamino(accounts, data),
         _ => Err(ProgramError::InvalidInstructionData),
     }
-}
-
-fn process_init_kamino(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    if data.is_empty() {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let mode = data[0];
-    let ctx = KaminoInitAccounts::try_from(accounts)?;
-    Kamino::initialize(&ctx, &mode)
-}
-
-fn process_deposit_kamino(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    if data.len() < 9 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let amount = u64::from_le_bytes(data[0..8].try_into().unwrap());
-    let flags = data[8];
-    let ctx = KaminoDepositAccounts::try_from(accounts)?;
-    Kamino::deposit(&ctx, amount, &flags)
-}
-
-fn process_borrow_kamino(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    if data.len() < 9 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let amount = u64::from_le_bytes(data[0..8].try_into().unwrap());
-    let flags = data[8];
-    let ctx = KaminoBorrowAccounts::try_from(accounts)?;
-    Kamino::borrow(&ctx, amount, &flags)
-}
-
-fn process_repay_kamino(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    if data.len() < 9 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let amount = u64::from_le_bytes(data[0..8].try_into().unwrap());
-    let flags = data[8];
-    let ctx = KaminoRepayAccounts::try_from(accounts)?;
-    Kamino::repay(&ctx, amount, &flags)
-}
-
-fn process_withdraw_kamino(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    if data.len() < 9 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let amount = u64::from_le_bytes(data[0..8].try_into().unwrap());
-    let flags = data[8];
-    let ctx = KaminoWithdrawAccounts::try_from(accounts)?;
-    Kamino::withdraw(&ctx, amount, &flags)
-}
-
-fn process_init_juplend(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    if data.len() < 6 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let vault_id = u16::from_le_bytes(data[0..2].try_into().unwrap());
-    let next_position_id = u32::from_le_bytes(data[2..6].try_into().unwrap());
-    let ctx = JupiterInitAccounts::try_from(accounts)?;
-    JupiterLend::initialize(&ctx, &(vault_id, next_position_id))
-}
-
-fn process_deposit_juplend(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    if data.len() < 11 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let amount = u64::from_le_bytes(data[0..8].try_into().unwrap());
-    let indices: [u8; 3] = data[8..11].try_into().unwrap();
-    let ctx = JupiterOperateAccounts::try_from(accounts)?;
-    JupiterLend::deposit(&ctx, amount, &indices)
-}
-
-fn process_borrow_juplend(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    if data.len() < 11 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let amount = u64::from_le_bytes(data[0..8].try_into().unwrap());
-    let indices: [u8; 3] = data[8..11].try_into().unwrap();
-    let ctx = JupiterOperateAccounts::try_from(accounts)?;
-    JupiterLend::borrow(&ctx, amount, &indices)
-}
-
-fn process_repay_juplend(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    if data.len() < 11 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let amount = u64::from_le_bytes(data[0..8].try_into().unwrap());
-    let indices: [u8; 3] = data[8..11].try_into().unwrap();
-    let ctx = JupiterOperateAccounts::try_from(accounts)?;
-    JupiterLend::repay(&ctx, amount, &indices)
-}
-
-fn process_withdraw_juplend(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    if data.len() < 11 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    let amount = u64::from_le_bytes(data[0..8].try_into().unwrap());
-    let indices: [u8; 3] = data[8..11].try_into().unwrap();
-    let ctx = JupiterOperateAccounts::try_from(accounts)?;
-    JupiterLend::withdraw(&ctx, amount, &indices)
-}
-
-fn process_refinance_kamino_to_jup(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    if data.len() < 27 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
-    let kamino_repay_len = u16::from_le_bytes(data[0..2].try_into().unwrap()) as usize;
-    let kamino_withdraw_len = u16::from_le_bytes(data[2..4].try_into().unwrap()) as usize;
-    let juplend_len = u16::from_le_bytes(data[4..6].try_into().unwrap()) as usize;
-    let repay_flags = data[6];
-    let withdraw_flags = data[7];
-    let indices: [u8; 3] = data[8..11].try_into().unwrap();
-    let jup_deposit_amount = u64::from_le_bytes(data[11..19].try_into().unwrap());
-    let jup_borrow_amount = u64::from_le_bytes(data[19..27].try_into().unwrap());
-
-    let total = kamino_repay_len + kamino_withdraw_len + juplend_len;
-    if accounts.len() < total {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    }
-
-    let repay_accounts = &accounts[0..kamino_repay_len];
-    let withdraw_accounts = &accounts[kamino_repay_len..kamino_repay_len + kamino_withdraw_len];
-    let juplend_accounts = &accounts[kamino_repay_len + kamino_withdraw_len..total];
-
-    let repay_ctx = KaminoRepayAccounts::try_from(repay_accounts)?;
-    let withdraw_ctx = KaminoWithdrawAccounts::try_from(withdraw_accounts)?;
-    let juplend_ctx = JupiterOperateAccounts::try_from(juplend_accounts)?;
-
-    Kamino::repay(&repay_ctx, u64::MAX, &repay_flags)?;
-    Kamino::withdraw(&withdraw_ctx, u64::MAX, &withdraw_flags)?;
-
-    JupiterLend::deposit_and_borrow(
-        &juplend_ctx,
-        jup_deposit_amount,
-        jup_borrow_amount,
-        &indices,
-    )
-}
-
-fn process_refinance_jup_to_kamino(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    if data.len() < 27 {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
-    let juplend_len = u16::from_le_bytes(data[0..2].try_into().unwrap()) as usize;
-    let kamino_deposit_len = u16::from_le_bytes(data[2..4].try_into().unwrap()) as usize;
-    let kamino_borrow_len = u16::from_le_bytes(data[4..6].try_into().unwrap()) as usize;
-    let deposit_flags = data[6];
-    let borrow_flags = data[7];
-    let indices: [u8; 3] = data[8..11].try_into().unwrap();
-    let kamino_deposit_amount = u64::from_le_bytes(data[11..19].try_into().unwrap());
-    let kamino_borrow_amount = u64::from_le_bytes(data[19..27].try_into().unwrap());
-
-    let total = juplend_len + kamino_deposit_len + kamino_borrow_len;
-    if accounts.len() < total {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    }
-
-    let juplend_accounts = &accounts[0..juplend_len];
-    let kamino_deposit_accounts = &accounts[juplend_len..juplend_len + kamino_deposit_len];
-    let kamino_borrow_accounts = &accounts[juplend_len + kamino_deposit_len..total];
-
-    let juplend_ctx = JupiterOperateAccounts::try_from(juplend_accounts)?;
-    let deposit_ctx = KaminoDepositAccounts::try_from(kamino_deposit_accounts)?;
-    let borrow_ctx = KaminoBorrowAccounts::try_from(kamino_borrow_accounts)?;
-
-    JupiterLend::repay_and_withdraw(&juplend_ctx, u64::MAX, u64::MAX, &indices)?; //change this
-
-    Kamino::deposit(&deposit_ctx, kamino_deposit_amount, &deposit_flags)?;
-    Kamino::borrow(&borrow_ctx, kamino_borrow_amount, &borrow_flags)
 }

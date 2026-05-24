@@ -22,21 +22,6 @@ const DISC_OPERATE: [u8; 8] = [217, 106, 208, 99, 116, 151, 42, 135];
 
 pub struct JupiterLend;
 
-/// Accounts required to init a Jupiter Lend position (14 accounts):
-///  [0]  vaults_program
-///  [1]  signer
-///  [2]  vault_admin
-///  [3]  vault_state
-///  [4]  position
-///  [5]  position_mint
-///  [6]  position_token_account
-///  [7]  metadata_account
-///  [8]  token_program
-///  [9]  associated_token_program
-///  [10] system_program
-///  [11] sysvar_instruction
-///  [12] metadata_program
-///  [13] rent
 pub struct JupiterInitAccounts<'info> {
     pub vaults_program: &'info AccountInfo,
     pub signer: &'info AccountInfo,
@@ -54,69 +39,33 @@ pub struct JupiterInitAccounts<'info> {
     pub rent: &'info AccountInfo,
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for JupiterInitAccounts<'info> {
-    type Error = ProgramError;
-    fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        if accounts.len() < 14 {
+impl<'info> JupiterInitAccounts<'info> {
+    pub fn try_from_slice(accounts: &'info [AccountInfo]) -> Result<Self, ProgramError> {
+        let [vaults_program, signer, vault_admin, vault_state, position, position_mint, position_token_account, metadata_account, token_program, associated_token_program, system_program, sysvar_instruction, metadata_program, rent, ..] =
+            accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
-        }
+        };
+
         Ok(Self {
-            vaults_program: &accounts[0],
-            signer: &accounts[1],
-            vault_admin: &accounts[2],
-            vault_state: &accounts[3],
-            position: &accounts[4],
-            position_mint: &accounts[5],
-            position_token_account: &accounts[6],
-            metadata_account: &accounts[7],
-            token_program: &accounts[8],
-            associated_token_program: &accounts[9],
-            system_program: &accounts[10],
-            sysvar_instruction: &accounts[11],
-            metadata_program: &accounts[12],
-            rent: &accounts[13],
+            vaults_program,
+            signer,
+            vault_admin,
+            vault_state,
+            position,
+            position_mint,
+            position_token_account,
+            metadata_account,
+            token_program,
+            associated_token_program,
+            system_program,
+            sysvar_instruction,
+            metadata_program,
+            rent,
         })
     }
 }
 
-/// Accounts for Jupiter Lend operate (36+ accounts):
-///  [0]  vaults_program   – placeholder; not forwarded to CPI
-///  [1]  signer
-///  [2]  signer_supply_token_account
-///  [3]  signer_borrow_token_account
-///  [4]  recipient
-///  [5]  recipient_borrow_token_account
-///  [6]  recipient_supply_token_account
-///  [7]  vault_config
-///  [8]  vault_state
-///  [9]  supply_token
-///  [10] borrow_token
-///  [11] oracle
-///  [12] position
-///  [13] position_token_account
-///  [14] current_position_tick
-///  [15] final_position_tick
-///  [16] current_position_tick_id
-///  [17] final_position_tick_id
-///  [18] new_branch
-///  [19] supply_token_reserves_liquidity
-///  [20] borrow_token_reserves_liquidity
-///  [21] vault_supply_position_on_liquidity
-///  [22] vault_borrow_position_on_liquidity
-///  [23] supply_rate_model
-///  [24] borrow_rate_model
-///  [25] vault_supply_token_account
-///  [26] vault_borrow_token_account
-///  [27] supply_token_claim_account
-///  [28] borrow_token_claim_account
-///  [29] liquidity
-///  [30] liquidity_program
-///  [31] oracle_program
-///  [32] supply_token_program
-///  [33] borrow_token_program
-///  [34] associated_token_program
-///  [35] system_program
-///  [36..] remaining_accounts
 pub struct JupiterOperateAccounts<'info> {
     pub vaults_program: &'info AccountInfo,
     pub signer: &'info AccountInfo,
@@ -157,71 +106,58 @@ pub struct JupiterOperateAccounts<'info> {
     pub remaining_accounts: &'info [AccountInfo],
 }
 
-impl<'info> TryFrom<&'info [AccountInfo]> for JupiterOperateAccounts<'info> {
-    type Error = ProgramError;
-    fn try_from(accounts: &'info [AccountInfo]) -> Result<Self, Self::Error> {
-        if accounts.len() < 36 {
+impl<'info> JupiterOperateAccounts<'info> {
+    pub fn try_from_slice(accounts: &'info [AccountInfo]) -> Result<Self, ProgramError> {
+        let [vaults_program, signer, signer_supply_token_account, signer_borrow_token_account, recipient, recipient_borrow_token_account, recipient_supply_token_account, vault_config, vault_state, supply_token, borrow_token, oracle, position, position_token_account, current_position_tick, final_position_tick, current_position_tick_id, final_position_tick_id, new_branch, supply_token_reserves_liquidity, borrow_token_reserves_liquidity, vault_supply_position_on_liquidity, vault_borrow_position_on_liquidity, supply_rate_model, borrow_rate_model, vault_supply_token_account, vault_borrow_token_account, supply_token_claim_account, borrow_token_claim_account, liquidity, liquidity_program, oracle_program, supply_token_program, borrow_token_program, associated_token_program, system_program, remaining_accounts @ ..] =
+            accounts
+        else {
             return Err(ProgramError::NotEnoughAccountKeys);
-        }
+        };
+
         Ok(Self {
-            vaults_program: &accounts[0],
-            signer: &accounts[1],
-            signer_supply_token_account: &accounts[2],
-            signer_borrow_token_account: &accounts[3],
-            recipient: &accounts[4],
-            recipient_borrow_token_account: &accounts[5],
-            recipient_supply_token_account: &accounts[6],
-            vault_config: &accounts[7],
-            vault_state: &accounts[8],
-            supply_token: &accounts[9],
-            borrow_token: &accounts[10],
-            oracle: &accounts[11],
-            position: &accounts[12],
-            position_token_account: &accounts[13],
-            current_position_tick: &accounts[14],
-            final_position_tick: &accounts[15],
-            current_position_tick_id: &accounts[16],
-            final_position_tick_id: &accounts[17],
-            new_branch: &accounts[18],
-            supply_token_reserves_liquidity: &accounts[19],
-            borrow_token_reserves_liquidity: &accounts[20],
-            vault_supply_position_on_liquidity: &accounts[21],
-            vault_borrow_position_on_liquidity: &accounts[22],
-            supply_rate_model: &accounts[23],
-            borrow_rate_model: &accounts[24],
-            vault_supply_token_account: &accounts[25],
-            vault_borrow_token_account: &accounts[26],
-            supply_token_claim_account: &accounts[27],
-            borrow_token_claim_account: &accounts[28],
-            liquidity: &accounts[29],
-            liquidity_program: &accounts[30],
-            oracle_program: &accounts[31],
-            supply_token_program: &accounts[32],
-            borrow_token_program: &accounts[33],
-            associated_token_program: &accounts[34],
-            system_program: &accounts[35],
-            remaining_accounts: &accounts[36..],
+            vaults_program,
+            signer,
+            signer_supply_token_account,
+            signer_borrow_token_account,
+            recipient,
+            recipient_borrow_token_account,
+            recipient_supply_token_account,
+            vault_config,
+            vault_state,
+            supply_token,
+            borrow_token,
+            oracle,
+            position,
+            position_token_account,
+            current_position_tick,
+            final_position_tick,
+            current_position_tick_id,
+            final_position_tick_id,
+            new_branch,
+            supply_token_reserves_liquidity,
+            borrow_token_reserves_liquidity,
+            vault_supply_position_on_liquidity,
+            vault_borrow_position_on_liquidity,
+            supply_rate_model,
+            borrow_rate_model,
+            vault_supply_token_account,
+            vault_borrow_token_account,
+            supply_token_claim_account,
+            borrow_token_claim_account,
+            liquidity,
+            liquidity_program,
+            oracle_program,
+            supply_token_program,
+            borrow_token_program,
+            associated_token_program,
+            system_program,
+            remaining_accounts,
         })
     }
 }
 
-/// Init position CPI (13 fixed accounts; vaults_program passed last as readonly).
-#[allow(clippy::too_many_arguments)]
 pub fn init_position<'a>(
-    signer: &'a AccountInfo,
-    vault_admin: &'a AccountInfo,
-    vault_state: &'a AccountInfo,
-    position: &'a AccountInfo,
-    position_mint: &'a AccountInfo,
-    position_token_account: &'a AccountInfo,
-    metadata_account: &'a AccountInfo,
-    token_program: &'a AccountInfo,
-    associated_token_program: &'a AccountInfo,
-    system_program: &'a AccountInfo,
-    sysvar_instruction: &'a AccountInfo,
-    metadata_program: &'a AccountInfo,
-    rent: &'a AccountInfo,
-    vaults_program: &'a AccountInfo,
+    ctx: &'a JupiterInitAccounts<'a>,
     vault_id: u16,
     next_position_id: u32,
     signers: &[Signer],
@@ -234,35 +170,53 @@ pub fn init_position<'a>(
     invoke_signed_with_accounts(
         &JUP_LEND_VAULTS_PROGRAM_ID,
         [
-            (signer, AccountMeta::writable_signer(signer.key())),
-            (vault_admin, AccountMeta::writable(vault_admin.key())),
-            (vault_state, AccountMeta::writable(vault_state.key())),
-            (position, AccountMeta::writable(position.key())),
-            (position_mint, AccountMeta::writable(position_mint.key())),
+            (ctx.signer, AccountMeta::writable_signer(ctx.signer.key())),
             (
-                position_token_account,
-                AccountMeta::writable(position_token_account.key()),
+                ctx.vault_admin,
+                AccountMeta::writable(ctx.vault_admin.key()),
             ),
             (
-                metadata_account,
-                AccountMeta::writable(metadata_account.key()),
+                ctx.vault_state,
+                AccountMeta::writable(ctx.vault_state.key()),
             ),
-            (token_program, AccountMeta::readonly(token_program.key())),
+            (ctx.position, AccountMeta::writable(ctx.position.key())),
             (
-                associated_token_program,
-                AccountMeta::readonly(associated_token_program.key()),
-            ),
-            (system_program, AccountMeta::readonly(system_program.key())),
-            (
-                sysvar_instruction,
-                AccountMeta::readonly(sysvar_instruction.key()),
+                ctx.position_mint,
+                AccountMeta::writable(ctx.position_mint.key()),
             ),
             (
-                metadata_program,
-                AccountMeta::readonly(metadata_program.key()),
+                ctx.position_token_account,
+                AccountMeta::writable(ctx.position_token_account.key()),
             ),
-            (rent, AccountMeta::readonly(rent.key())),
-            (vaults_program, AccountMeta::readonly(vaults_program.key())),
+            (
+                ctx.metadata_account,
+                AccountMeta::writable(ctx.metadata_account.key()),
+            ),
+            (
+                ctx.token_program,
+                AccountMeta::readonly(ctx.token_program.key()),
+            ),
+            (
+                ctx.associated_token_program,
+                AccountMeta::readonly(ctx.associated_token_program.key()),
+            ),
+            (
+                ctx.system_program,
+                AccountMeta::readonly(ctx.system_program.key()),
+            ),
+            (
+                ctx.sysvar_instruction,
+                AccountMeta::readonly(ctx.sysvar_instruction.key()),
+            ),
+            (
+                ctx.metadata_program,
+                AccountMeta::readonly(ctx.metadata_program.key()),
+            ),
+            (ctx.rent, AccountMeta::readonly(ctx.rent.key())),
+            (
+                ctx.vaults_program,
+                AccountMeta::readonly(ctx.vaults_program.key()),
+            ),
         ],
         unsafe { from_raw_parts(data.as_ptr() as *const u8, 14) },
         signers,
@@ -455,25 +409,7 @@ impl<'info> Initialize<'info> for JupiterLend {
         signer_seeds: &[Signer],
     ) -> ProgramResult {
         let (vault_id, next_position_id) = *data;
-        init_position(
-            ctx.signer,
-            ctx.vault_admin,
-            ctx.vault_state,
-            ctx.position,
-            ctx.position_mint,
-            ctx.position_token_account,
-            ctx.metadata_account,
-            ctx.token_program,
-            ctx.associated_token_program,
-            ctx.system_program,
-            ctx.sysvar_instruction,
-            ctx.metadata_program,
-            ctx.rent,
-            ctx.vaults_program,
-            vault_id,
-            next_position_id,
-            signer_seeds,
-        )
+        init_position(ctx, vault_id, next_position_id, signer_seeds)
     }
 }
 
