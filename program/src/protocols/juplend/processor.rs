@@ -1,6 +1,6 @@
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
 
-use crate::traits::{Borrow, Deposit, Initialize, Repay, Withdraw};
+use crate::traits::Initialize;
 
 use super::{
     data::{JupiterInitData, JupiterOperateData},
@@ -50,22 +50,22 @@ pub fn process_init(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
     InitJupiter::try_from((data, accounts))?.process()
 }
 
-pub fn process_deposit(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
+pub fn process_deposit_and_borrow(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
     let ix = OperateJupiter::try_from((data, accounts))?;
-    JupiterLend::deposit(&ix.accounts, ix.data.amount, &ix.data.indices)
+    JupiterLend::deposit_and_borrow(
+        &ix.accounts,
+        ix.data.collateral_amount,
+        ix.data.debt_amount,
+        &ix.data.indices,
+    )
 }
 
-pub fn process_borrow(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
+pub fn process_repay_and_withdraw(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
     let ix = OperateJupiter::try_from((data, accounts))?;
-    JupiterLend::borrow(&ix.accounts, ix.data.amount, &ix.data.indices)
-}
-
-pub fn process_repay(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    let ix = OperateJupiter::try_from((data, accounts))?;
-    JupiterLend::repay(&ix.accounts, ix.data.amount, &ix.data.indices)
-}
-
-pub fn process_withdraw(accounts: &[AccountInfo], data: &[u8]) -> ProgramResult {
-    let ix = OperateJupiter::try_from((data, accounts))?;
-    JupiterLend::withdraw(&ix.accounts, ix.data.amount, &ix.data.indices)
+    JupiterLend::repay_and_withdraw(
+        &ix.accounts,
+        ix.data.debt_amount,
+        ix.data.collateral_amount,
+        &ix.data.indices,
+    )
 }

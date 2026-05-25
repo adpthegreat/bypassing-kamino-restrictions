@@ -348,7 +348,7 @@ pub fn refresh_obligation_with_reserves<'a>(
         if count >= MAX {
             break;
         }
-        metas[count].write(AccountMeta::readonly(r.key()));
+        metas[count].write(AccountMeta::writable(r.key()));
         infos[count].write(r);
         count += 1;
     }
@@ -590,69 +590,82 @@ pub fn borrow_from_reserve<'a>(
     amount: u64,
     signers: &[Signer],
 ) -> ProgramResult {
+    const FIXED_ACCOUNTS: usize = 15;
+    const MAX_RESERVE_ACCOUNTS: usize = 8;
+    const MAX_ACCOUNTS: usize = FIXED_ACCOUNTS + MAX_RESERVE_ACCOUNTS;
+
     let mut data = [UNINIT_BYTE; 16];
     write_bytes(&mut data[0..8], &DISC_BORROW_OBLIGATION_LIQUIDITY_V2);
     write_bytes(&mut data[8..16], &amount.to_le_bytes());
 
-    invoke_signed_with_accounts(
+    let reserve_count = ctx.reserve_accounts.len();
+    debug_assert!(reserve_count <= MAX_RESERVE_ACCOUNTS);
+    let total = FIXED_ACCOUNTS + reserve_count;
+
+    let mut metas: [MaybeUninit<AccountMeta>; MAX_ACCOUNTS] =
+        unsafe { MaybeUninit::uninit().assume_init() };
+    let mut infos: [MaybeUninit<&AccountInfo>; MAX_ACCOUNTS] =
+        unsafe { MaybeUninit::uninit().assume_init() };
+
+    metas[0].write(AccountMeta::readonly_signer(ctx.owner.key()));
+    infos[0].write(ctx.owner);
+
+    metas[1].write(AccountMeta::writable(ctx.obligation.key()));
+    infos[1].write(ctx.obligation);
+
+    metas[2].write(AccountMeta::readonly(ctx.lending_market.key()));
+    infos[2].write(ctx.lending_market);
+
+    metas[3].write(AccountMeta::readonly(ctx.lending_market_authority.key()));
+    infos[3].write(ctx.lending_market_authority);
+
+    metas[4].write(AccountMeta::writable(ctx.borrow_reserve.key()));
+    infos[4].write(ctx.borrow_reserve);
+
+    metas[5].write(AccountMeta::readonly(ctx.output_mint.key()));
+    infos[5].write(ctx.output_mint);
+
+    metas[6].write(AccountMeta::writable(ctx.reserve_borrow_supply.key()));
+    infos[6].write(ctx.reserve_borrow_supply);
+
+    metas[7].write(AccountMeta::writable(
+        ctx.borrow_reserve_liquidity_fee_receiver.key(),
+    ));
+    infos[7].write(ctx.borrow_reserve_liquidity_fee_receiver);
+
+    metas[8].write(AccountMeta::writable(ctx.user_borrow_destination.key()));
+    infos[8].write(ctx.user_borrow_destination);
+
+    metas[9].write(AccountMeta::readonly(ctx.kamino_lending_program.key()));
+    infos[9].write(ctx.kamino_lending_program);
+
+    metas[10].write(AccountMeta::readonly(ctx.token_program.key()));
+    infos[10].write(ctx.token_program);
+
+    metas[11].write(AccountMeta::readonly(ctx.instruction_sysvar_account.key()));
+    infos[11].write(ctx.instruction_sysvar_account);
+
+    metas[12].write(AccountMeta::writable(
+        ctx.borrow_obligation_farm_state.key(),
+    ));
+    infos[12].write(ctx.borrow_obligation_farm_state);
+
+    metas[13].write(AccountMeta::writable(ctx.borrow_reserve_farm_state.key()));
+    infos[13].write(ctx.borrow_reserve_farm_state);
+
+    metas[14].write(AccountMeta::readonly(ctx.farms_program.key()));
+    infos[14].write(ctx.farms_program);
+
+    for (i, reserve_account) in ctx.reserve_accounts.iter().enumerate() {
+        metas[FIXED_ACCOUNTS + i].write(AccountMeta::writable(reserve_account.key()));
+        infos[FIXED_ACCOUNTS + i].write(reserve_account);
+    }
+
+    invoke_signed_with_count(
         &KAMINO_LEND_PROGRAM_ID,
-        [
-            (ctx.owner, AccountMeta::readonly_signer(ctx.owner.key())),
-            (ctx.obligation, AccountMeta::writable(ctx.obligation.key())),
-            (
-                ctx.lending_market,
-                AccountMeta::readonly(ctx.lending_market.key()),
-            ),
-            (
-                ctx.lending_market_authority,
-                AccountMeta::readonly(ctx.lending_market_authority.key()),
-            ),
-            (
-                ctx.borrow_reserve,
-                AccountMeta::writable(ctx.borrow_reserve.key()),
-            ),
-            (
-                ctx.output_mint,
-                AccountMeta::readonly(ctx.output_mint.key()),
-            ),
-            (
-                ctx.reserve_borrow_supply,
-                AccountMeta::writable(ctx.reserve_borrow_supply.key()),
-            ),
-            (
-                ctx.borrow_reserve_liquidity_fee_receiver,
-                AccountMeta::writable(ctx.borrow_reserve_liquidity_fee_receiver.key()),
-            ),
-            (
-                ctx.user_borrow_destination,
-                AccountMeta::writable(ctx.user_borrow_destination.key()),
-            ),
-            // referrerTokenState: kamino_lending_program as the no-referrer sentinel (readonly).
-            (
-                ctx.kamino_lending_program,
-                AccountMeta::readonly(ctx.kamino_lending_program.key()),
-            ),
-            (
-                ctx.token_program,
-                AccountMeta::readonly(ctx.token_program.key()),
-            ),
-            (
-                ctx.instruction_sysvar_account,
-                AccountMeta::readonly(ctx.instruction_sysvar_account.key()),
-            ),
-            (
-                ctx.borrow_obligation_farm_state,
-                AccountMeta::writable(ctx.borrow_obligation_farm_state.key()),
-            ),
-            (
-                ctx.borrow_reserve_farm_state,
-                AccountMeta::writable(ctx.borrow_reserve_farm_state.key()),
-            ),
-            (
-                ctx.farms_program,
-                AccountMeta::readonly(ctx.farms_program.key()),
-            ),
-        ],
+        &metas,
+        &infos,
+        total,
         unsafe { from_raw_parts(data.as_ptr() as *const u8, 16) },
         signers,
     )
@@ -663,60 +676,74 @@ pub fn repay_debt<'a>(
     amount: u64,
     signers: &[Signer],
 ) -> ProgramResult {
+    const FIXED_ACCOUNTS: usize = 13;
+    const MAX_RESERVE_ACCOUNTS: usize = 8;
+    const MAX_ACCOUNTS: usize = FIXED_ACCOUNTS + MAX_RESERVE_ACCOUNTS;
+
     let mut data = [UNINIT_BYTE; 16];
     write_bytes(&mut data[0..8], &DISC_REPAY_OBLIGATION_LIQUIDITY_V2);
     write_bytes(&mut data[8..16], &amount.to_le_bytes());
 
-    invoke_signed_with_accounts(
+    let reserve_count = ctx.reserve_accounts.len();
+    debug_assert!(reserve_count <= MAX_RESERVE_ACCOUNTS);
+    let total = FIXED_ACCOUNTS + reserve_count;
+
+    let mut metas: [MaybeUninit<AccountMeta>; MAX_ACCOUNTS] =
+        unsafe { MaybeUninit::uninit().assume_init() };
+    let mut infos: [MaybeUninit<&AccountInfo>; MAX_ACCOUNTS] =
+        unsafe { MaybeUninit::uninit().assume_init() };
+
+    metas[0].write(AccountMeta::readonly_signer(ctx.owner.key()));
+    infos[0].write(ctx.owner);
+
+    metas[1].write(AccountMeta::writable(ctx.obligation.key()));
+    infos[1].write(ctx.obligation);
+
+    metas[2].write(AccountMeta::readonly(ctx.lending_market.key()));
+    infos[2].write(ctx.lending_market);
+
+    metas[3].write(AccountMeta::writable(ctx.borrow_reserve.key()));
+    infos[3].write(ctx.borrow_reserve);
+
+    metas[4].write(AccountMeta::readonly(ctx.output_mint.key()));
+    infos[4].write(ctx.output_mint);
+
+    metas[5].write(AccountMeta::writable(ctx.reserve_borrow_supply.key()));
+    infos[5].write(ctx.reserve_borrow_supply);
+
+    metas[6].write(AccountMeta::writable(ctx.user_source_liquidity.key()));
+    infos[6].write(ctx.user_source_liquidity);
+
+    metas[7].write(AccountMeta::readonly(ctx.token_program.key()));
+    infos[7].write(ctx.token_program);
+
+    metas[8].write(AccountMeta::readonly(ctx.instruction_sysvar_account.key()));
+    infos[8].write(ctx.instruction_sysvar_account);
+
+    metas[9].write(AccountMeta::writable(
+        ctx.borrow_obligation_farm_state.key(),
+    ));
+    infos[9].write(ctx.borrow_obligation_farm_state);
+
+    metas[10].write(AccountMeta::writable(ctx.borrow_reserve_farm_state.key()));
+    infos[10].write(ctx.borrow_reserve_farm_state);
+
+    metas[11].write(AccountMeta::readonly(ctx.lending_market_authority.key()));
+    infos[11].write(ctx.lending_market_authority);
+
+    metas[12].write(AccountMeta::readonly(ctx.farms_program.key()));
+    infos[12].write(ctx.farms_program);
+
+    for (i, reserve_account) in ctx.reserve_accounts.iter().enumerate() {
+        metas[FIXED_ACCOUNTS + i].write(AccountMeta::writable(reserve_account.key()));
+        infos[FIXED_ACCOUNTS + i].write(reserve_account);
+    }
+
+    invoke_signed_with_count(
         &KAMINO_LEND_PROGRAM_ID,
-        [
-            (ctx.owner, AccountMeta::readonly_signer(ctx.owner.key())),
-            (ctx.obligation, AccountMeta::writable(ctx.obligation.key())),
-            (
-                ctx.lending_market,
-                AccountMeta::readonly(ctx.lending_market.key()),
-            ),
-            (
-                ctx.borrow_reserve,
-                AccountMeta::writable(ctx.borrow_reserve.key()),
-            ),
-            (
-                ctx.output_mint,
-                AccountMeta::readonly(ctx.output_mint.key()),
-            ),
-            (
-                ctx.reserve_borrow_supply,
-                AccountMeta::writable(ctx.reserve_borrow_supply.key()),
-            ),
-            (
-                ctx.user_source_liquidity,
-                AccountMeta::writable(ctx.user_source_liquidity.key()),
-            ),
-            (
-                ctx.token_program,
-                AccountMeta::readonly(ctx.token_program.key()),
-            ),
-            (
-                ctx.instruction_sysvar_account,
-                AccountMeta::readonly(ctx.instruction_sysvar_account.key()),
-            ),
-            (
-                ctx.borrow_obligation_farm_state,
-                AccountMeta::writable(ctx.borrow_obligation_farm_state.key()),
-            ),
-            (
-                ctx.borrow_reserve_farm_state,
-                AccountMeta::writable(ctx.borrow_reserve_farm_state.key()),
-            ),
-            (
-                ctx.lending_market_authority,
-                AccountMeta::readonly(ctx.lending_market_authority.key()),
-            ),
-            (
-                ctx.farms_program,
-                AccountMeta::readonly(ctx.farms_program.key()),
-            ),
-        ],
+        &metas,
+        &infos,
+        total,
         unsafe { from_raw_parts(data.as_ptr() as *const u8, 16) },
         signers,
     )
