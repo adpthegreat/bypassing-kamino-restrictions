@@ -12,20 +12,18 @@ pub enum KaminoJuplendRefinanceInstruction {
     ///   [17..25] destination_deposit_amount           u64 LE
     ///   [25..33] destination_borrow_amount            u64 LE
     ///   [33]     kamino_has_collateral_or_borrow_flag u8
-    ///   [34..36] jupiter_remaining_accounts_len       u16 LE
-    ///   [36..39] juplend_indices                      [u8; 3]
+    ///   [34..37] juplend_indices                      [u8; 3]
     ///
     /// Account layout:
-    ///   [0..36]                                  Jupiter Lend fixed operate accounts
-    ///   [36..36+jupiter_remaining_accounts_len] Jupiter Lend remaining accounts
-    ///   [36+jupiter_remaining_accounts_len..]   unified Kamino accounts
+    ///   [0..36]              Jupiter Lend fixed operate accounts
+    ///   [36..kamino_start]   Jupiter Lend remaining accounts
+    ///   [kamino_start..]     unified Kamino accounts, starting with KLend program
     RefinanceKaminoToJupiter {
         source_repay_amount: u64,
         source_withdraw_amount: u64,
         destination_deposit_amount: u64,
         destination_borrow_amount: u64,
         kamino_has_collateral_or_borrow_flag: u8,
-        jupiter_remaining_accounts_len: u16,
         juplend_indices: [u8; 3],
     },
 
@@ -38,20 +36,18 @@ pub enum KaminoJuplendRefinanceInstruction {
     ///   [17..25] destination_deposit_amount           u64 LE
     ///   [25..33] destination_borrow_amount            u64 LE
     ///   [33]     kamino_has_collateral_or_borrow_flag u8
-    ///   [34..36] jupiter_remaining_accounts_len       u16 LE
-    ///   [36..39] juplend_indices                      [u8; 3]
+    ///   [34..37] juplend_indices                      [u8; 3]
     ///
     /// Account layout:
-    ///   [0..36]                                  Jupiter Lend fixed operate accounts
-    ///   [36..36+jupiter_remaining_accounts_len] Jupiter Lend remaining accounts
-    ///   [36+jupiter_remaining_accounts_len..]   unified Kamino accounts
+    ///   [0..36]              Jupiter Lend fixed operate accounts
+    ///   [36..kamino_start]   Jupiter Lend remaining accounts
+    ///   [kamino_start..]     unified Kamino accounts, starting with KLend program
     RefinanceJupiterToKamino {
         source_repay_amount: u64,
         source_withdraw_amount: u64,
         destination_deposit_amount: u64,
         destination_borrow_amount: u64,
         kamino_has_collateral_or_borrow_flag: u8,
-        jupiter_remaining_accounts_len: u16,
         juplend_indices: [u8; 3],
     },
 }

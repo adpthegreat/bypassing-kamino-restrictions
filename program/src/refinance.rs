@@ -5,7 +5,7 @@ use crate::{
         juplend::{JupiterLend, JupiterOperateAccounts},
         kamino::{
             Kamino, KaminoBorrowAccounts, KaminoDepositAccounts, KaminoRepayAccounts,
-            KaminoWithdrawAccounts, FLAG_HAS_BORROWS, FLAG_HAS_COLLATERAL,
+            KaminoWithdrawAccounts, FLAG_HAS_BORROWS, FLAG_HAS_COLLATERAL, KAMINO_LEND_PROGRAM_ID,
         },
     },
     traits::{Borrow, Deposit, Repay, Withdraw},
@@ -24,8 +24,6 @@ pub struct RefinanceData {
     pub destination_borrow_amount: u64,
     // Kamino refresh-obligation state flag.
     pub kamino_has_collateral_or_borrow_flag: u8,
-    // Number of Jupiter remaining accounts after its fixed account prefix.
-    pub jupiter_remaining_accounts_len: usize,
     pub jupiter_indices: [u8; 3],
 }
 
@@ -33,7 +31,7 @@ impl TryFrom<&[u8]> for RefinanceData {
     type Error = ProgramError;
 
     fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
-        if data.len() < 38 {
+        if data.len() < 36 {
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -43,9 +41,7 @@ impl TryFrom<&[u8]> for RefinanceData {
             destination_deposit_amount: u64::from_le_bytes(data[16..24].try_into().unwrap()),
             destination_borrow_amount: u64::from_le_bytes(data[24..32].try_into().unwrap()),
             kamino_has_collateral_or_borrow_flag: data[32],
-            jupiter_remaining_accounts_len: u16::from_le_bytes(data[33..35].try_into().unwrap())
-                as usize,
-            jupiter_indices: data[35..38].try_into().unwrap(),
+            jupiter_indices: data[33..36].try_into().unwrap(),
         })
     }
 }
@@ -230,18 +226,19 @@ pub struct RefinanceAccounts<'a> {
 }
 
 impl<'a> RefinanceAccounts<'a> {
-    fn try_from_slice(
-        accounts: &'a [AccountInfo],
-        jupiter_remaining_accounts_len: usize,
-    ) -> Result<Self, ProgramError> {
-        let juplend_len = JUPITER_OPERATE_FIXED_ACCOUNTS + jupiter_remaining_accounts_len;
-
-        if accounts.len() < juplend_len {
+    fn try_from_slice(accounts: &'a [AccountInfo]) -> Result<Self, ProgramError> {
+        if accounts.len() < JUPITER_OPERATE_FIXED_ACCOUNTS {
             return Err(ProgramError::NotEnoughAccountKeys);
         }
 
-        let juplend_slice = &accounts[..juplend_len];
-        let kamino_slice = &accounts[juplend_len..];
+        // Jupiter has 36 fixed accounts; only scan its variable remaining accounts for the Kamino boundary.
+        let kamino_start = accounts[JUPITER_OPERATE_FIXED_ACCOUNTS..]
+            .iter()
+            .position(|account| account.key() == &KAMINO_LEND_PROGRAM_ID)
+            .map(|offset| JUPITER_OPERATE_FIXED_ACCOUNTS + offset)
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+        let (juplend_slice, kamino_slice) = accounts.split_at(kamino_start);
 
         Ok(Self {
             juplend_accounts: JupiterOperateAccounts::try_from_slice(juplend_slice)?,
@@ -260,8 +257,7 @@ impl<'a> TryFrom<(&'a [u8], &'a [AccountInfo])> for Refinance<'a> {
 
     fn try_from((raw_data, accounts): (&'a [u8], &'a [AccountInfo])) -> Result<Self, Self::Error> {
         let data = RefinanceData::try_from(raw_data)?;
-        let accounts =
-            RefinanceAccounts::try_from_slice(accounts, data.jupiter_remaining_accounts_len)?;
+        let accounts = RefinanceAccounts::try_from_slice(accounts)?;
 
         Ok(Self { accounts, data })
     }

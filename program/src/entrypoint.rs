@@ -29,8 +29,8 @@ const REFINANCE_JUP_TO_KAMINO: u8 = 11;
 //  WITHDRAW_KAMINO      [amount: u64 LE][flags: u8]
 //  DEPOSIT_AND_BORROW_JUPLEND [deposit_amount: u64 LE][borrow_amount: u64 LE][indices: [u8; 3]]
 //  REPAY_AND_WITHDRAW_JUPLEND [withdraw_amount: u64 LE][repay_amount: u64 LE][indices: [u8; 3]]
-//  REFINANCE_KAMINO_TO_JUP  [source_repay: u64][source_withdraw: u64][destination_deposit: u64][destination_borrow: u64][kamino_has_collateral_or_borrow_flag: u8][jupiter_remaining_accounts_len: u16][indices: [u8; 3]]
-//  REFINANCE_JUP_TO_KAMINO  [source_repay: u64][source_withdraw: u64][destination_deposit: u64][destination_borrow: u64][kamino_has_collateral_or_borrow_flag: u8][jupiter_remaining_accounts_len: u16][indices: [u8; 3]]
+//  REFINANCE_KAMINO_TO_JUP  [source_repay: u64][source_withdraw: u64][destination_deposit: u64][destination_borrow: u64][kamino_has_collateral_or_borrow_flag: u8][indices: [u8; 3]]
+//  REFINANCE_JUP_TO_KAMINO  [source_repay: u64][source_withdraw: u64][destination_deposit: u64][destination_borrow: u64][kamino_has_collateral_or_borrow_flag: u8][indices: [u8; 3]]
 
 pub fn process_instruction(
     _program_id: &Pubkey,
