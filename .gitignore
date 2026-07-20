@@ -3,6 +3,16 @@ program/target/
 dist/
 .surfpool/
 
+# test artifacts + vendored surfpool binary
+.test-keys/
+bin/surfpool
+package-lock.json
+yarn-error.log
+
+# dumped mainnet fixtures + dumped transaction (regenerate with npm run dump-fixtures / flow:tx)
+tests/fixtures/
+refinance-flow.json
+
 **/*.json
 !package.json
 !tsconfig*.json

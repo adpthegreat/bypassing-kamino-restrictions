@@ -7,9 +7,11 @@
     "strict": false,
     "skipLibCheck": true,
     "esModuleInterop": true,
+    "allowJs": true,
     "resolveJsonModule": true,
     "outDir": "./dist",
-    "rootDir": "."
+    "rootDir": ".",
+    "types": ["mocha", "node"]
   },
-  "include": ["tests/**/*.ts"]
+  "include": ["tests/**/*.ts", "tests/**/*.js", "scripts/**/*.ts"]
 }
