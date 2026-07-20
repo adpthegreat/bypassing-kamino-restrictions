@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="502" height="448" viewBox="0 0 502 448">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="16" y="32" font-family="monospace" font-size="14" font-weight="bold" fill="#000">operate(new_col, new_debt) — single action</text>
+<rect x="16" y="40" width="470" height="30" fill="#eeeeee" stroke="#000" stroke-width="1"/>
+<text x="26" y="59.666666666666664" font-family="monospace" font-size="14" font-weight="bold" fill="#000">Action</text>
+<line x1="246" y1="40" x2="246" y2="70" stroke="#000" stroke-width="1"/>
+<text x="256" y="59.666666666666664" font-family="monospace" font-size="14" font-weight="bold" fill="#000">new_col</text>
+<line x1="366" y1="40" x2="366" y2="70" stroke="#000" stroke-width="1"/>
+<text x="376" y="59.666666666666664" font-family="monospace" font-size="14" font-weight="bold" fill="#000">new_debt</text>
+<rect x="16" y="70" width="470" height="30" fill="#ffffff" stroke="#000" stroke-width="1"/>
+<text x="26" y="89.66666666666667" font-family="monospace" font-size="14"  fill="#000">Initialize</text>
+<line x1="246" y1="70" x2="246" y2="100" stroke="#000" stroke-width="1"/>
+<text x="256" y="89.66666666666667" font-family="monospace" font-size="14"  fill="#000">0</text>
+<line x1="366" y1="70" x2="366" y2="100" stroke="#000" stroke-width="1"/>
+<text x="376" y="89.66666666666667" font-family="monospace" font-size="14"  fill="#000">0</text>
+<rect x="16" y="100" width="470" height="30" fill="#ffffff" stroke="#000" stroke-width="1"/>
+<text x="26" y="119.66666666666667" font-family="monospace" font-size="14"  fill="#000">Deposit</text>
+<line x1="246" y1="100" x2="246" y2="130" stroke="#000" stroke-width="1"/>
+<text x="256" y="119.66666666666667" font-family="monospace" font-size="14"  fill="#000">+amount</text>
+<line x1="366" y1="100" x2="366" y2="130" stroke="#000" stroke-width="1"/>
+<text x="376" y="119.66666666666667" font-family="monospace" font-size="14"  fill="#000">0</text>
+<rect x="16" y="130" width="470" height="30" fill="#ffffff" stroke="#000" stroke-width="1"/>
+<text x="26" y="149.66666666666666" font-family="monospace" font-size="14"  fill="#000">Withdraw</text>
+<line x1="246" y1="130" x2="246" y2="160" stroke="#000" stroke-width="1"/>
+<text x="256" y="149.66666666666666" font-family="monospace" font-size="14"  fill="#000">-amount</text>
+<line x1="366" y1="130" x2="366" y2="160" stroke="#000" stroke-width="1"/>
+<text x="376" y="149.66666666666666" font-family="monospace" font-size="14"  fill="#000">0</text>
+<rect x="16" y="160" width="470" height="30" fill="#ffffff" stroke="#000" stroke-width="1"/>
+<text x="26" y="179.66666666666666" font-family="monospace" font-size="14"  fill="#000">Borrow</text>
+<line x1="246" y1="160" x2="246" y2="190" stroke="#000" stroke-width="1"/>
+<text x="256" y="179.66666666666666" font-family="monospace" font-size="14"  fill="#000">0</text>
+<line x1="366" y1="160" x2="366" y2="190" stroke="#000" stroke-width="1"/>
+<text x="376" y="179.66666666666666" font-family="monospace" font-size="14"  fill="#000">+amount</text>
+<rect x="16" y="190" width="470" height="30" fill="#ffffff" stroke="#000" stroke-width="1"/>
+<text x="26" y="209.66666666666666" font-family="monospace" font-size="14"  fill="#000">Repay</text>
+<line x1="246" y1="190" x2="246" y2="220" stroke="#000" stroke-width="1"/>
+<text x="256" y="209.66666666666666" font-family="monospace" font-size="14"  fill="#000">0</text>
+<line x1="366" y1="190" x2="366" y2="220" stroke="#000" stroke-width="1"/>
+<text x="376" y="209.66666666666666" font-family="monospace" font-size="14"  fill="#000">-amount</text>
+<text x="16" y="264" font-family="monospace" font-size="14" font-weight="bold" fill="#000">operate — combined (both legs at once)</text>
+<rect x="16" y="272" width="470" height="30" fill="#eeeeee" stroke="#000" stroke-width="1"/>
+<text x="26" y="291.6666666666667" font-family="monospace" font-size="14" font-weight="bold" fill="#000">Combined action</text>
+<line x1="246" y1="272" x2="246" y2="302" stroke="#000" stroke-width="1"/>
+<text x="256" y="291.6666666666667" font-family="monospace" font-size="14" font-weight="bold" fill="#000">new_col</text>
+<line x1="366" y1="272" x2="366" y2="302" stroke="#000" stroke-width="1"/>
+<text x="376" y="291.6666666666667" font-family="monospace" font-size="14" font-weight="bold" fill="#000">new_debt</text>
+<rect x="16" y="302" width="470" height="30" fill="#ffffff" stroke="#000" stroke-width="1"/>
+<text x="26" y="321.6666666666667" font-family="monospace" font-size="14"  fill="#000">Deposit + Borrow</text>
+<line x1="246" y1="302" x2="246" y2="332" stroke="#000" stroke-width="1"/>
+<text x="256" y="321.6666666666667" font-family="monospace" font-size="14"  fill="#000">+deposit</text>
+<line x1="366" y1="302" x2="366" y2="332" stroke="#000" stroke-width="1"/>
+<text x="376" y="321.6666666666667" font-family="monospace" font-size="14"  fill="#000">+borrow</text>
+<rect x="16" y="332" width="470" height="30" fill="#ffffff" stroke="#000" stroke-width="1"/>
+<text x="26" y="351.6666666666667" font-family="monospace" font-size="14"  fill="#000">Repay + Withdraw</text>
+<line x1="246" y1="332" x2="246" y2="362" stroke="#000" stroke-width="1"/>
+<text x="256" y="351.6666666666667" font-family="monospace" font-size="14"  fill="#000">-withdraw</text>
+<line x1="366" y1="332" x2="366" y2="362" stroke="#000" stroke-width="1"/>
+<text x="376" y="351.6666666666667" font-family="monospace" font-size="14"  fill="#000">-repay</text>
+<text x="16" y="392" font-family="monospace" font-size="12" fill="#000">new_col: +deposit / -withdraw   new_debt: +borrow / -repay</text>
+<text x="16" y="412" font-family="monospace" font-size="12" fill="#000">i128::MIN (u64::MAX) = all  (withdraw-all / repay-all)</text>
+</svg>
