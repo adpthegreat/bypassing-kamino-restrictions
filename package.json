@@ -1,24 +1,44 @@
 {
+  "name": "bypassing-kamino-restrictions",
+  "version": "1.0.0",
+  "license": "MIT",
   "scripts": {
-    "build:program": "cargo build-sbf --manifest-path program/Cargo.toml && cp target/sbpf-solana-solana/release/kamino_juplend_refinance.so target/deploy/kamino_juplend_refinance.so",
-    "test:kamino-to-jup": "npm run build:program && ts-mocha -p ./tsconfig.json -t 1000000 tests/kamino-to-jup.ts",
-    "test:jup-to-kamino": "npm run build:program && ts-mocha -p ./tsconfig.json -t 1000000 tests/jup-to-kamino.ts"
+    "build:program": "cargo build-sbf --manifest-path program/Cargo.toml && mkdir -p target/deploy && cp target/sbpf-solana-solana/release/kamino_juplend_refinance.so target/deploy/kamino_juplend_refinance.so",
+    "generate:idl": "shank idl -r program -o idl -p Gr4ofKMU4AFW9hpR1dYxbVBHjvXDw9d6LYpCscTc3xMD",
+    "print-tx": "tsx scripts/print-tx.ts",
+    "fetch-markets": "tsx tests/fetch-refinanceable-markets.ts",
+    "flashloan-demo": "tsx tests/flashloan-bypass-demo.ts",
+    "flow:tx": "tsx scripts/flashloan-refinance-tx.ts",
+    "flow:mermaid": "tsx scripts/json-to-mermaid.ts",
+    "operate-table": "tsx scripts/operate-table-svg.ts && qlmanage -t -s 900 -o docs docs/operate-deltas.svg && mv -f docs/operate-deltas.svg.png docs/operate-deltas.png",
+    "dump-fixtures": "tsx scripts/dump-fixtures.ts",
+    "test:litesvm": "mocha --require tsx tests/litesvm-refinance.ts --timeout 120000",
+    "test:kamino-to-jup": "mocha --require tsx tests/refinance-kamino-to-jup.ts --timeout 200000",
+    "test:jup-to-kamino": "mocha --require tsx tests/refinance-jup-to-kamino.ts --timeout 200000"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.0",
-    "@jup-ag/lend": "^0.1.2",
-    "@kamino-finance/klend-sdk": "6.0.5-beta.11",
-    "@solana/spl-token": "^0.4.9",
-    "@solana/web3.js": "^1.98.0",
-    "decimal.js": "^10.4.3"
+    "@jup-ag/lend": "^0.1.10",
+    "@kamino-finance/klend-sdk": "^6.0.5-beta.11",
+    "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.98.4",
+    "decimal.js": "^10.6.0",
+    "litesvm": "^0.2.0"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",
-    "@types/mocha": "^9.0.0",
+    "@types/chai": "^5.2.3",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^22.0.0",
-    "mocha": "^9.0.3",
+    "bn.js": "^5.2.5",
+    "chai": "^4.5.0",
+    "mocha": "^11.7.5",
     "ts-mocha": "^10.0.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.3"
+  },
+  "resolutions": {
+    "**/@solana/web3.js": "^1.98.4"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
