@@ -3,29 +3,12 @@
   "name": "kamino_juplend_refinance",
   "instructions": [
     {
-      "name": "RefinanceKaminoToJupiter",
+      "name": "InitKamino",
       "accounts": [],
       "args": [
         {
-          "name": "kaminoRepayAccountCount",
-          "type": "u16"
-        },
-        {
-          "name": "kaminoWithdrawAccountCount",
-          "type": "u16"
-        },
-        {
-          "name": "juplendAccountCount",
-          "type": "u16"
-        },
-        {
-          "name": "juplendIndices",
-          "type": {
-            "array": [
-              "u8",
-              3
-            ]
-          }
+          "name": "mode",
+          "type": "u8"
         }
       ],
       "discriminant": {
@@ -34,20 +17,106 @@
       }
     },
     {
-      "name": "RefinanceJupiterToKamino",
+      "name": "InitJupiterLend",
       "accounts": [],
       "args": [
         {
-          "name": "juplendAccountCount",
+          "name": "vaultId",
           "type": "u16"
         },
         {
-          "name": "kaminoDepositAccountCount",
-          "type": "u16"
+          "name": "nextPositionId",
+          "type": "u32"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 1
+      }
+    },
+    {
+      "name": "DepositKamino",
+      "accounts": [],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
         },
         {
-          "name": "kaminoBorrowAccountCount",
-          "type": "u16"
+          "name": "flags",
+          "type": "u8"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 2
+      }
+    },
+    {
+      "name": "BorrowKamino",
+      "accounts": [],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "flags",
+          "type": "u8"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 3
+      }
+    },
+    {
+      "name": "RepayKamino",
+      "accounts": [],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "flags",
+          "type": "u8"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 4
+      }
+    },
+    {
+      "name": "WithdrawKamino",
+      "accounts": [],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "flags",
+          "type": "u8"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 5
+      }
+    },
+    {
+      "name": "DepositAndBorrowJuplend",
+      "accounts": [],
+      "args": [
+        {
+          "name": "depositAmount",
+          "type": "u64"
+        },
+        {
+          "name": "borrowAmount",
+          "type": "u64"
         },
         {
           "name": "juplendIndices",
@@ -61,7 +130,112 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 1
+        "value": 6
+      }
+    },
+    {
+      "name": "RepayAndWithdrawJuplend",
+      "accounts": [],
+      "args": [
+        {
+          "name": "withdrawAmount",
+          "type": "u64"
+        },
+        {
+          "name": "repayAmount",
+          "type": "u64"
+        },
+        {
+          "name": "juplendIndices",
+          "type": {
+            "array": [
+              "u8",
+              3
+            ]
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 7
+      }
+    },
+    {
+      "name": "RefinanceKaminoToJupiter",
+      "accounts": [],
+      "args": [
+        {
+          "name": "sourceRepayAmount",
+          "type": "u64"
+        },
+        {
+          "name": "sourceWithdrawAmount",
+          "type": "u64"
+        },
+        {
+          "name": "destinationDepositAmount",
+          "type": "u64"
+        },
+        {
+          "name": "destinationBorrowAmount",
+          "type": "u64"
+        },
+        {
+          "name": "kaminoHasCollateralOrBorrowFlag",
+          "type": "u8"
+        },
+        {
+          "name": "juplendIndices",
+          "type": {
+            "array": [
+              "u8",
+              3
+            ]
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 10
+      }
+    },
+    {
+      "name": "RefinanceJupiterToKamino",
+      "accounts": [],
+      "args": [
+        {
+          "name": "sourceRepayAmount",
+          "type": "u64"
+        },
+        {
+          "name": "sourceWithdrawAmount",
+          "type": "u64"
+        },
+        {
+          "name": "destinationDepositAmount",
+          "type": "u64"
+        },
+        {
+          "name": "destinationBorrowAmount",
+          "type": "u64"
+        },
+        {
+          "name": "kaminoHasCollateralOrBorrowFlag",
+          "type": "u8"
+        },
+        {
+          "name": "juplendIndices",
+          "type": {
+            "array": [
+              "u8",
+              3
+            ]
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 11
       }
     }
   ],
