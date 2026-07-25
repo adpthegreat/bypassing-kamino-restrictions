@@ -3,8 +3,8 @@
 A Pinocchio Solana program that refinances loans between **Kamino Lend** and
 **Jupiter Lend** in a single instruction, plus a full test/tooling suite.
 
-> For the *why* — how it bypasses Kamino's anti-refinance restriction — see
-> [README1.md](README1.md). This file is setup & usage only.
+> For the *why* — how it bypasses Kamino's anti-refinance restriction - see
+> [ARTICLE.md](ARTICLE.md). This file is setup & usage only.
 
 ---
 
