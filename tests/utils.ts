@@ -22,15 +22,9 @@ import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
-import {
-  K_LEND_PROGRAM_ID,
-  K_FARMS_PROGRAM_ID,
-  JLP_LENDING_MARKET,
-} from "./constants";
+import { K_LEND_PROGRAM_ID, K_FARMS_PROGRAM_ID } from "./constants";
 
-// ---------------------------------------------------------------------------
-// Surfpool cheatcodes (surfnet_* JSON-RPC methods POSTed to the RPC endpoint)
-// ---------------------------------------------------------------------------
+
 async function surfnetRpc(connection: Connection, method: string, params: any[]) {
   const res = await fetch(connection.rpcEndpoint, {
     method: "POST",
@@ -74,9 +68,7 @@ export function surfnetStreamAccount(connection: Connection, address: PublicKey)
   return surfnetRpc(connection, "surfnet_streamAccount", [address.toBase58()]);
 }
 
-// ---------------------------------------------------------------------------
-// Transaction sender (v0, with compute budget + optional ALTs)
-// ---------------------------------------------------------------------------
+
 export async function sendV0Tx(opts: {
   connection: Connection;
   payerKeypair: Keypair;
@@ -117,12 +109,10 @@ export async function sendV0Tx(opts: {
   return sig;
 }
 
-// ---------------------------------------------------------------------------
-// Kamino PDA helpers (hand-rolled; match klend-sdk seeds)
-// ---------------------------------------------------------------------------
+
 export function obligationAccount(
   owner: PublicKey,
-  market: PublicKey = JLP_LENDING_MARKET
+  market: PublicKey
 ): PublicKey {
   const [pda] = PublicKey.findProgramAddressSync(
     [
@@ -186,9 +176,6 @@ export function getAtaAddress(mint: PublicKey, owner: PublicKey): PublicKey {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Address lookup table (needed to fit the big refinance tx under 1232 bytes)
-// ---------------------------------------------------------------------------
 export async function createLookupTable(
   connection: Connection,
   payer: Keypair,
@@ -233,7 +220,7 @@ export async function createLookupTable(
   throw new Error("lookup table did not populate in time");
 }
 
-// little-endian byte packers -------------------------------------------------
+// little-endian byte packers 
 export const u8 = (v: number) => Buffer.from([v & 0xff]);
 export const u16 = (v: number) => {
   const b = Buffer.alloc(2);

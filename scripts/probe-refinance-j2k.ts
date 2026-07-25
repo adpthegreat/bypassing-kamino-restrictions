@@ -8,11 +8,18 @@ import {
   tokenAirdrop,
   refinanceJupiterToKamino,
 } from "../tests/bootstrap";
-import { JLP_DEPOSIT_AMOUNT, USDC_BORROW_AMOUNT, USDC_MINT } from "../tests/constants";
+import { RPC_URL } from "../tests/constants";
+import { getRefinancePair } from "../tests/market";
+import { Connection } from "@solana/web3.js";
 import { printFetchedTransaction } from "../tests/tx-printer";
 
+const DEPOSIT = 100_000_000n;
+const BORROW = 300_000_000n;
+
 async function main() {
-  const ctx = await createCtx();
+  const connection = new Connection(RPC_URL, "confirmed");
+  const pair = await getRefinancePair({ collateralSymbol: "JLP", debtSymbol: "USDC" });
+  const ctx = await createCtx(connection, pair);
   console.log("payer:", ctx.payer.publicKey.toBase58());
 
   console.log("\n[1] prepare + init empty Kamino obligation (destination)…");
@@ -22,17 +29,12 @@ async function main() {
 
   console.log("\n[2] open Jupiter Lend loan (source)…");
   const positionId = await nextJupiterPositionId(ctx);
-  await openJupiterLoan(ctx, positionId, JLP_DEPOSIT_AMOUNT, USDC_BORROW_AMOUNT);
+  await openJupiterLoan(ctx, positionId, DEPOSIT, BORROW);
   console.log("  ✓ Jupiter loan open, position", positionId);
 
   console.log("\n[3] refinance Jupiter → Kamino…");
-  await tokenAirdrop(ctx, USDC_MINT, 10_000_000_000n); // to repay Jupiter debt
-  const sig = await refinanceJupiterToKamino(
-    ctx,
-    positionId,
-    JLP_DEPOSIT_AMOUNT,
-    USDC_BORROW_AMOUNT
-  );
+  await tokenAirdrop(ctx, ctx.pair.debtMint, 5_000_000n); // fee buffer only — flashloan supplies the repay capital // to repay Jupiter debt
+  const sig = await refinanceJupiterToKamino(ctx, positionId, DEPOSIT, BORROW);
   console.log("  ✓ refinance sig:", sig);
   await new Promise((r) => setTimeout(r, 1500));
   await printFetchedTransaction(ctx.connection, sig, "Jupiter → Kamino refinance (surfpool)");

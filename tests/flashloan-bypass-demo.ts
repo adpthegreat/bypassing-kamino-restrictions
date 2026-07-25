@@ -28,26 +28,28 @@ import {
   tokenAirdrop,
   refinanceKaminoToJupiter,
 } from "./bootstrap";
-import { JLP_DEPOSIT_AMOUNT, USDC_BORROW_AMOUNT, USDC_MINT } from "./constants";
+import { Connection } from "@solana/web3.js";
+import { getRefinancePair, PairContext } from "./market";
+import { RPC_URL } from "./constants";
 import { printFetchedTransaction } from "./tx-printer";
 
-async function runCase(label: string, topLevelJupiter: boolean) {
+const DEPOSIT = 100_000_000n;
+const BORROW = 300_000_000n;
+
+async function runCase(pair: PairContext, label: string, topLevelJupiter: boolean) {
   console.log(`\n${"=".repeat(74)}\n${label}\n${"=".repeat(74)}`);
-  const ctx = await createCtx();
+  const connection = new Connection(RPC_URL, "confirmed");
+  const ctx = await createCtx(connection, pair);
   await prepare(ctx);
-  await openKaminoLoan(ctx, JLP_DEPOSIT_AMOUNT, USDC_BORROW_AMOUNT);
+  await openKaminoLoan(ctx, DEPOSIT, BORROW);
   const positionId = await nextJupiterPositionId(ctx);
   await openJupiterPosition(ctx, positionId);
-  await tokenAirdrop(ctx, USDC_MINT, 10_000_000_000n);
+  await tokenAirdrop(ctx, ctx.pair.debtMint, 5_000_000n); // fee buffer only — flashloan supplies the repay capital
 
   try {
-    const sig = await refinanceKaminoToJupiter(
-      ctx,
-      positionId,
-      JLP_DEPOSIT_AMOUNT,
-      USDC_BORROW_AMOUNT,
-      { topLevelJupiter }
-    );
+    const sig = await refinanceKaminoToJupiter(ctx, positionId, DEPOSIT, BORROW, {
+      topLevelJupiter,
+    });
     await new Promise((r) => setTimeout(r, 1200));
     await printFetchedTransaction(ctx.connection, sig, label);
     console.log(`RESULT: ✅ transaction CONFIRMED`);
@@ -80,11 +82,14 @@ async function runCase(label: string, topLevelJupiter: boolean) {
 }
 
 async function main() {
+  const pair = await getRefinancePair({ collateralSymbol: "JLP", debtSymbol: "USDC" });
   const bypass = await runCase(
+    pair,
     "BYPASS — Jupiter nested in our CPI (height 2)",
     false
   );
   const control = await runCase(
+    pair,
     "CONTROL — top-level Jupiter flashloan added (height 1)",
     true
   );

@@ -18,25 +18,15 @@ import {
 } from "@solana/web3.js";
 import BN from "bn.js";
 import { createCtx, prepare, openKaminoLoan } from "../tests/bootstrap";
-import {
-  JLP_DEPOSIT_AMOUNT,
-  USDC_BORROW_AMOUNT,
-  K_LEND_PROGRAM_ID,
-  K_FARMS_PROGRAM_ID,
-  JLP_LENDING_MARKET,
-  JLP_LENDING_MARKET_AUTH,
-  JLP_RESERVE,
-  USDC_RESERVE,
-  USDC_MINT,
-  USDC_SUPPLY_VAULT,
-  SCOPE_ORACLE_ACCOUNT,
-  SCOPE_ORACLE_ACCOUNT_2,
-  JUPITER_VAULT_ID,
-} from "../tests/constants";
+import { getRefinancePair, PairContext } from "../tests/market";
+import { RPC_URL, K_LEND_PROGRAM_ID, K_FARMS_PROGRAM_ID } from "../tests/constants";
+import { Connection } from "@solana/web3.js";
 import { sendV0Tx, createLookupTable, meta, u64, TOKEN_PROGRAM_ID } from "../tests/utils";
 
 const { getJupLendRefinance } = require("../tests/jup_lend_loader.js");
 
+const DEPOSIT = 100_000_000n;
+const BORROW = 300_000_000n;
 const DISC_REFRESH_RESERVE = Buffer.from([2, 218, 138, 235, 79, 201, 25, 102]);
 const DISC_REFRESH_OBLIGATION = Buffer.from([33, 132, 147, 228, 151, 192, 72, 89]);
 const DISC_REPAY_V2 = Buffer.from([116, 174, 213, 76, 180, 53, 210, 144]);
@@ -44,11 +34,11 @@ const DISC_REPAY_V2 = Buffer.from([116, 174, 213, 76, 180, 53, 210, 144]);
 const klendIx = (keys: any[], data: Buffer) =>
   new TransactionInstruction({ programId: K_LEND_PROGRAM_ID, keys, data });
 
-function refreshReserveIx(reserve: PublicKey, scope: PublicKey) {
+function refreshReserveIx(pair: PairContext, reserve: PublicKey, scope: PublicKey) {
   return klendIx(
     [
       meta(reserve, true),
-      meta(JLP_LENDING_MARKET),
+      meta(pair.market),
       meta(K_LEND_PROGRAM_ID),
       meta(K_LEND_PROGRAM_ID),
       meta(K_LEND_PROGRAM_ID),
@@ -58,48 +48,50 @@ function refreshReserveIx(reserve: PublicKey, scope: PublicKey) {
   );
 }
 
-function refreshObligationIx(obligation: PublicKey) {
+function refreshObligationIx(pair: PairContext, obligation: PublicKey) {
   return klendIx(
     [
-      meta(JLP_LENDING_MARKET),
+      meta(pair.market),
       meta(obligation, true),
-      meta(JLP_RESERVE, true),
-      meta(USDC_RESERVE, true),
+      meta(pair.collateral.reserve, true),
+      meta(pair.debt.reserve, true),
     ],
     DISC_REFRESH_OBLIGATION
   );
 }
 
 async function main() {
-  const ctx = await createCtx();
+  const connection = new Connection(RPC_URL, "confirmed");
+  const pair = await getRefinancePair({ collateralSymbol: "JLP", debtSymbol: "USDC" });
+  const ctx = await createCtx(connection, pair);
   console.log("payer:", ctx.payer.publicKey.toBase58());
   await prepare(ctx);
-  await openKaminoLoan(ctx, JLP_DEPOSIT_AMOUNT, USDC_BORROW_AMOUNT);
+  await openKaminoLoan(ctx, DEPOSIT, BORROW);
   console.log("✓ Kamino loan open\n");
 
-  // --- top-level KLend repay flow (repay all USDC debt) ---
-  const refreshJlp = refreshReserveIx(JLP_RESERVE, SCOPE_ORACLE_ACCOUNT);
-  const refreshUsdc = refreshReserveIx(USDC_RESERVE, SCOPE_ORACLE_ACCOUNT_2);
-  const refreshObl = refreshObligationIx(ctx.obligation);
+  // --- top-level KLend repay flow (repay some debt) ---
+  const refreshCol = refreshReserveIx(pair, pair.collateral.reserve, pair.collateral.scopeOracle);
+  const refreshDebt = refreshReserveIx(pair, pair.debt.reserve, pair.debt.scopeOracle);
+  const refreshObl = refreshObligationIx(pair, ctx.obligation);
   const repayIx = klendIx(
     [
       meta(ctx.payer.publicKey, false, true), // owner (signer)
       meta(ctx.obligation, true),
-      meta(JLP_LENDING_MARKET),
-      meta(USDC_RESERVE, true), // borrow_reserve
-      meta(USDC_MINT), // output_mint
-      meta(USDC_SUPPLY_VAULT, true),
-      meta(ctx.usdcAta, true), // user_source_liquidity
+      meta(pair.market),
+      meta(pair.debt.reserve, true), // borrow_reserve
+      meta(pair.debt.liquidityMint), // output_mint
+      meta(pair.debt.liquiditySupplyVault, true),
+      meta(ctx.debtAta, true), // user_source_liquidity
       meta(TOKEN_PROGRAM_ID),
       meta(SYSVAR_INSTRUCTIONS_PUBKEY), // <-- the account whose constraint scans the tx
-      meta(ctx.usdcObligationFarmState, true),
-      meta(ctx.usdcDebtFarm, true),
-      meta(JLP_LENDING_MARKET_AUTH),
+      meta(ctx.debtObligationFarmState, true),
+      meta(pair.debt.debtFarm, true),
+      meta(pair.marketAuthority),
       meta(K_FARMS_PROGRAM_ID),
-      meta(JLP_RESERVE, true), // reserve_accounts...
-      meta(USDC_RESERVE, true),
+      meta(pair.collateral.reserve, true), // reserve_accounts...
+      meta(pair.debt.reserve, true),
     ],
-    Buffer.concat([DISC_REPAY_V2, u64(1_000_000n)]) // repay 1 USDC
+    Buffer.concat([DISC_REPAY_V2, u64(1_000_000n)]) // repay 1 unit of debt
   );
 
   // --- a bare TOP-LEVEL jupr81 (Jupiter Lend borrow program) instruction ---

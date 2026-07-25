@@ -1,5 +1,5 @@
 /**
- * Execute a capital-free (flashloan-sandwiched) Kamino → Jupiter refinance on
+ * Execute a flashloan, Kamino → Jupiter refinance on
  * surfpool, dump the confirmed transaction JSON to ./refinance-flow.json, and
  * print the local Solscan (Studio) link to view/screenshot it.
  *
@@ -16,15 +16,15 @@ import {
   nextJupiterPositionId,
   openJupiterPosition,
   tokenAirdrop,
-  flashloanRefinanceKaminoToJupiter,
+  refinanceKaminoToJupiter,
 } from "../tests/bootstrap";
-import {
-  JLP_DEPOSIT_AMOUNT,
-  USDC_BORROW_AMOUNT,
-  USDC_MINT,
-  RPC_URL,
-} from "../tests/constants";
+import { RPC_URL } from "../tests/constants";
+import { getRefinancePair } from "../tests/market";
+import { Connection } from "@solana/web3.js";
 import { printFetchedTransaction } from "../tests/tx-printer";
+
+const DEPOSIT = 100_000_000n;
+const BORROW = 300_000_000n;
 
 // solscan.io can read from a custom RPC — point it at the local surfnet.
 const solscanLink = (sig: string) =>
@@ -40,27 +40,25 @@ function isTimeMathError(e: any): boolean {
 }
 
 async function runOnce() {
-  const ctx = await createCtx();
+  const connection = new Connection(RPC_URL, "confirmed");
+  const pair = await getRefinancePair({ collateralSymbol: "JLP", debtSymbol: "USDC" });
+  const ctx = await createCtx(connection, pair);
   console.log("payer:", ctx.payer.publicKey.toBase58());
 
-  console.log("\n[1] prepare + open a Kamino JLP/USDC loan…");
+  console.log(`\n[1] prepare + open a Kamino ${pair.collateralSymbol}/${pair.debtSymbol} loan…`);
   await prepare(ctx);
-  await openKaminoLoan(ctx, JLP_DEPOSIT_AMOUNT, USDC_BORROW_AMOUNT);
+  await openKaminoLoan(ctx, DEPOSIT, BORROW);
 
   console.log("[2] open destination Jupiter Lend position…");
   const positionId = await nextJupiterPositionId(ctx);
   await openJupiterPosition(ctx, positionId);
 
-  // small USDC buffer to cover Kamino interest + any flash fee
-  await tokenAirdrop(ctx, USDC_MINT, 5_000_000n);
+  // Drain the borrowed debt to a tiny fee buffer — the refinancer does NOT hold
+  // the capital to repay Kamino; the flashloan provides it.
+  await tokenAirdrop(ctx, ctx.pair.debtMint, 5_000_000n);
 
   console.log("[3] flashloan-sandwiched refinance (flash borrow → refinance → flash repay)…");
-  const sig = await flashloanRefinanceKaminoToJupiter(
-    ctx,
-    positionId,
-    JLP_DEPOSIT_AMOUNT,
-    USDC_BORROW_AMOUNT
-  );
+  const sig = await refinanceKaminoToJupiter(ctx, positionId, DEPOSIT, BORROW);
   console.log("  ✓ signature:", sig);
 
   await new Promise((r) => setTimeout(r, 1500));

@@ -24,20 +24,8 @@ import {
   JUP_LEND_BORROW_PROGRAM_ID,
   K_LEND_PROGRAM_ID,
   K_FARMS_PROGRAM_ID,
-  JLP_LENDING_MARKET,
-  JLP_LENDING_MARKET_AUTH,
-  JLP_RESERVE,
-  JLP_MINT,
-  JLP_SUPPLY_VAULT,
-  JLP_COLLATERAL_MINT,
-  JLP_COLLATERAL_VAULT,
-  USDC_RESERVE,
-  USDC_MINT,
-  USDC_SUPPLY_VAULT,
-  USDC_FEE_VAULT,
-  SCOPE_ORACLE_ACCOUNT,
-  SCOPE_ORACLE_ACCOUNT_2,
 } from "./constants";
+import { PairContext } from "./market";
 import { u8, u64, meta, TOKEN_PROGRAM_ID } from "./utils";
 
 type AccMeta = { pubkey: PublicKey; isWritable: boolean; isSigner: boolean };
@@ -119,50 +107,51 @@ export function buildJupiterOperateAccounts(
 // Starts with KLend program id — the boundary marker the program scans for.
 // ---------------------------------------------------------------------------
 export interface KaminoBlockParams {
+  pair: PairContext;
   owner: PublicKey;
   obligation: PublicKey;
-  jlpObligationFarmState: PublicKey;
-  jlpCollateralFarm: PublicKey;
-  usdcObligationFarmState: PublicKey;
-  usdcDebtFarm: PublicKey;
-  jlpAta: PublicKey;
-  usdcAta: PublicKey;
+  collateralObligationFarmState: PublicKey;
+  debtObligationFarmState: PublicKey;
+  collateralAta: PublicKey;
+  debtAta: PublicKey;
 }
 
 export function buildKaminoBlock(p: KaminoBlockParams): AccMeta[] {
+  const c = p.pair.collateral;
+  const d = p.pair.debt;
   return [
     meta(K_LEND_PROGRAM_ID, false, false), // boundary marker
     meta(p.owner, false, true), // owner (signer)
     meta(p.obligation, true, false),
-    meta(JLP_LENDING_MARKET, false, false),
-    meta(JLP_LENDING_MARKET_AUTH, false, false),
-    // collateral (JLP) leg
-    meta(JLP_RESERVE, true, false),
-    meta(JLP_MINT, false, false),
-    meta(JLP_SUPPLY_VAULT, true, false),
-    meta(JLP_COLLATERAL_MINT, true, false),
-    meta(JLP_COLLATERAL_VAULT, true, false),
-    meta(p.jlpAta, true, false),
+    meta(p.pair.market, false, false),
+    meta(p.pair.marketAuthority, false, false),
+    // collateral leg
+    meta(c.reserve, true, false),
+    meta(c.liquidityMint, false, false),
+    meta(c.liquiditySupplyVault, true, false),
+    meta(c.collateralMint, true, false),
+    meta(c.collateralSupplyVault, true, false),
+    meta(p.collateralAta, true, false),
     meta(TOKEN_PROGRAM_ID, false, false), // collateral_token_program
     meta(TOKEN_PROGRAM_ID, false, false), // liquidity_token_program
     meta(SYSVAR_INSTRUCTIONS_PUBKEY, false, false),
-    meta(p.jlpObligationFarmState, true, false),
-    meta(p.jlpCollateralFarm, true, false),
+    meta(p.collateralObligationFarmState, true, false),
+    meta(c.collateralFarm, true, false),
     meta(K_FARMS_PROGRAM_ID, false, false),
-    meta(SCOPE_ORACLE_ACCOUNT, false, false), // collateral scope oracle
-    // debt (USDC) leg
-    meta(USDC_RESERVE, true, false),
-    meta(USDC_MINT, false, false),
-    meta(USDC_SUPPLY_VAULT, true, false),
-    meta(USDC_FEE_VAULT, true, false),
-    meta(p.usdcAta, true, false),
+    meta(c.scopeOracle, false, false), // collateral scope oracle
+    // debt leg
+    meta(d.reserve, true, false),
+    meta(d.liquidityMint, false, false),
+    meta(d.liquiditySupplyVault, true, false),
+    meta(d.feeVault, true, false),
+    meta(p.debtAta, true, false),
     meta(TOKEN_PROGRAM_ID, false, false), // debt_token_program
-    meta(p.usdcObligationFarmState, true, false),
-    meta(p.usdcDebtFarm, true, false),
-    meta(SCOPE_ORACLE_ACCOUNT_2, false, false), // debt scope oracle
+    meta(p.debtObligationFarmState, true, false),
+    meta(d.debtFarm, true, false),
+    meta(d.scopeOracle, false, false), // debt scope oracle
     // reserve_accounts (obligation's reserves for in-CPI refresh)
-    meta(JLP_RESERVE, true, false),
-    meta(USDC_RESERVE, true, false),
+    meta(c.reserve, true, false),
+    meta(d.reserve, true, false),
   ];
 }
 

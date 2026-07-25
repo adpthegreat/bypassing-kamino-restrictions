@@ -59,9 +59,7 @@ interface KaminoReserveMetrics {
   totalBorrowUsd: number | string;
 }
 
-// ---------------------------------------------------------------------------
-// Fetch helpers
-// ---------------------------------------------------------------------------
+
 async function getJSON<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`GET ${url} -> ${res.status} ${res.statusText}`);
@@ -196,9 +194,6 @@ export async function findRefinanceableMarkets(): Promise<RefinanceableMarket[]>
   return out;
 }
 
-// ---------------------------------------------------------------------------
-// CLI
-// ---------------------------------------------------------------------------
 function pct(x: number): string {
   return (x * 100).toFixed(1) + "%";
 }

@@ -10,26 +10,25 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { execFileSync } from "child_process";
 import { writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
-import {
-  MAINNET_RPC_URL,
-  K_LEND_PROGRAM_ID,
-  JLP_RESERVE,
-  JLP_LENDING_MARKET,
-  SCOPE_ORACLE_ACCOUNT,
-} from "../tests/constants";
+import { MAINNET_RPC_URL, K_LEND_PROGRAM_ID } from "../tests/constants";
+import { getRefinancePair } from "../tests/market";
 
 const RPC = process.env.RPC || MAINNET_RPC_URL;
 const OUT = join(__dirname, "..", "tests", "fixtures");
-
-const ACCOUNTS: Record<string, PublicKey> = {
-  jlp_reserve: JLP_RESERVE,
-  jlp_lending_market: JLP_LENDING_MARKET,
-  scope_oracle: SCOPE_ORACLE_ACCOUNT,
-};
+const COLLATERAL = process.env.COLLATERAL || "JLP";
+const DEBT = process.env.DEBT || "USDC";
 
 async function main() {
   mkdirSync(OUT, { recursive: true });
   const connection = new Connection(RPC, "confirmed");
+
+  // Resolve the pair JIT so the fixtures aren't hardcoded to one asset.
+  const pair = await getRefinancePair({ collateralSymbol: COLLATERAL, debtSymbol: DEBT });
+  const ACCOUNTS: Record<string, PublicKey> = {
+    collateral_reserve: pair.collateral.reserve,
+    lending_market: pair.market,
+    scope_oracle: pair.collateral.scopeOracle,
+  };
 
   const slot = await connection.getSlot("confirmed");
   const blockTime = await connection.getBlockTime(slot).catch(() => null);

@@ -1,17 +1,19 @@
 /**
  * Surfpool integration test: Kamino → Jupiter Lend refinance.
  *
- * Opens a real JLP/USDC loan on Kamino (mainnet fork), opens a destination
- * Jupiter Lend position, then migrates the whole position in a single call to
- * our program. The migration touches Kamino's restricted RepayObligationLiquidityV2
- * — but only inside our program's CPI (stack height 2), so Kamino's Instructions-
- * sysvar guard (which reads only top-level instructions) never sees the Jupiter
- * Lend program and the transaction is allowed. Success == the restriction bypassed.
+ * Opens a real loan on Kamino (mainnet fork), opens a destination Jupiter Lend
+ * position, then migrates the whole position in a single call to our program.
+ * The migration touches Kamino's restricted RepayObligationLiquidityV2 — but only
+ * inside our program's CPI (stack height 2), so Kamino's Instructions-sysvar guard
+ * never sees the Jupiter Lend program and the transaction is allowed.
  *
- * Requires: surfpool (mainnet fork + surfnet cheatcodes) at $ANCHOR_PROVIDER_URL
- * and the program deployed at $PROGRAM_ID. See README1.md / package.json.
+ * The pair is resolved just-in-time from the two symbols below — swap them (and
+ * the amounts) to test any collateral/debt pair that exists on both venues.
+ *
+ * Requires: surfpool (mainnet fork + cheatcodes); it auto-deploys the program.
  */
 import { expect } from "chai";
+import { Connection } from "@solana/web3.js";
 import {
   createCtx,
   prepare,
@@ -20,50 +22,61 @@ import {
   openJupiterPosition,
   tokenAirdrop,
   refinanceKaminoToJupiter,
+  printStepLinks,
   Ctx,
 } from "./bootstrap";
-import { JLP_DEPOSIT_AMOUNT, USDC_BORROW_AMOUNT, USDC_MINT } from "./constants";
+import { getRefinancePair } from "./market";
+import { RPC_URL } from "./constants";
 import { printFetchedTransaction } from "./tx-printer";
 
-describe("refinance: Kamino → Jupiter Lend", function () {
+const COLLATERAL = "JLP";
+const DEBT = "USDC";
+const DEPOSIT = 100_000_000n; // raw collateral amount
+const BORROW = 300_000_000n; // raw debt amount
+
+describe(`refinance: Kamino → Jupiter Lend (${COLLATERAL}/${DEBT})`, function () {
   this.timeout(200_000);
   let ctx: Ctx;
 
   before(async () => {
-    ctx = await createCtx();
+    const connection = new Connection(RPC_URL, "confirmed");
+    const pair = await getRefinancePair({
+      collateralSymbol: COLLATERAL,
+      debtSymbol: DEBT,
+    });
+    ctx = await createCtx(connection, pair);
     await prepare(ctx);
   });
 
-  it("opens a Kamino JLP/USDC loan", async () => {
-    await openKaminoLoan(ctx, JLP_DEPOSIT_AMOUNT, USDC_BORROW_AMOUNT);
-    const usdc = await ctx.connection.getTokenAccountBalance(ctx.usdcAta);
-    expect(Number(usdc.value.amount)).to.be.greaterThan(0);
+  after(() => {
+    if (ctx) printStepLinks(ctx, `${COLLATERAL} → ${DEBT} · Kamino → Jupiter refinance — steps`);
+  });
+
+  it("opens a Kamino loan", async () => {
+    await openKaminoLoan(ctx, DEPOSIT, BORROW);
+    const debt = await ctx.connection.getTokenAccountBalance(ctx.debtAta);
+    expect(Number(debt.value.amount)).to.be.greaterThan(0);
   });
 
   it("migrates the position to Jupiter Lend (bypassing the Kamino restriction)", async () => {
     const positionId = await nextJupiterPositionId(ctx);
     await openJupiterPosition(ctx, positionId);
 
-    // Pre-fund USDC so the CPI can repay all Kamino debt (flashloan-free path;
-    // the capital-free flashloan variant is in flashloan-bypass-demo.ts).
-    await tokenAirdrop(ctx, USDC_MINT, 10_000_000_000n);
+    // Drain the borrowed debt down to a tiny fee buffer: the refinancer does NOT
+    // hold the capital to repay Kamino. The flashloan inside refinanceKaminoToJupiter
+    // (flash borrow → refinance → flash repay) is what supplies it.
+    await tokenAirdrop(ctx, ctx.pair.debtMint, 5_000_000n);
 
-    const sig = await refinanceKaminoToJupiter(
-      ctx,
-      positionId,
-      JLP_DEPOSIT_AMOUNT,
-      USDC_BORROW_AMOUNT
-    );
+    const sig = await refinanceKaminoToJupiter(ctx, positionId, DEPOSIT, BORROW);
     expect(sig).to.be.a("string");
 
     await new Promise((r) => setTimeout(r, 1200));
     await printFetchedTransaction(
       ctx.connection,
       sig,
-      "Kamino → Jupiter refinance (surfpool)"
+      `Kamino → Jupiter refinance (${COLLATERAL}/${DEBT}, surfpool)`
     );
 
-    // Confirm on-chain success.
     const tx = await ctx.connection.getTransaction(sig, {
       maxSupportedTransactionVersion: 0,
       commitment: "confirmed",

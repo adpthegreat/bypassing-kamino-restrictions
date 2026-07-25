@@ -23,27 +23,23 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { Keypair, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { LiteSVM, Clock, TransactionMetadata } from "litesvm";
-import {
-  K_LEND_PROGRAM_ID,
-  JLP_RESERVE,
-  JLP_LENDING_MARKET,
-  SCOPE_ORACLE_ACCOUNT,
-} from "./constants";
+import { K_LEND_PROGRAM_ID } from "./constants";
 import { printLiteSVMResult } from "./tx-printer";
 
 const FIX = join(__dirname, "fixtures");
 const DISC_REFRESH_RESERVE = Buffer.from([2, 218, 138, 235, 79, 201, 25, 102]);
 
-function loadFixtureAccount(svm: LiteSVM, name: string) {
+function loadFixtureAccount(svm: LiteSVM, name: string): PublicKey {
   const rec = JSON.parse(readFileSync(join(FIX, `${name}.json`), "utf8"));
-  svm.setAccount(new PublicKey(rec.pubkey), {
+  const pubkey = new PublicKey(rec.pubkey);
+  svm.setAccount(pubkey, {
     lamports: rec.lamports,
     data: new Uint8Array(Buffer.from(rec.data, "base64")),
     owner: new PublicKey(rec.owner),
     executable: rec.executable,
     rentEpoch: 0,
   });
-  return rec;
+  return pubkey;
 }
 
 describe("LiteSVM: deterministic Kamino RefreshReserve from mainnet fixtures", function () {
@@ -56,15 +52,15 @@ describe("LiteSVM: deterministic Kamino RefreshReserve from mainnet fixtures", f
     }
   });
 
-  it("refreshes the JLP reserve against real scope prices", () => {
+  it("refreshes the collateral reserve against real scope prices", () => {
     const manifest = JSON.parse(readFileSync(join(FIX, "manifest.json"), "utf8"));
     const svm = new LiteSVM().withSplPrograms().withSysvars();
 
-    // Load the KLend program + the accounts it reads.
+    // Load the KLend program + the accounts it reads (pubkeys come from the fixtures).
     svm.addProgramFromFile(K_LEND_PROGRAM_ID, join(FIX, "klend.so"));
-    loadFixtureAccount(svm, "jlp_reserve");
-    loadFixtureAccount(svm, "jlp_lending_market");
-    loadFixtureAccount(svm, "scope_oracle");
+    const reserve = loadFixtureAccount(svm, "collateral_reserve");
+    const lendingMarket = loadFixtureAccount(svm, "lending_market");
+    const scopeOracle = loadFixtureAccount(svm, "scope_oracle");
 
     // Align the clock with the fixture slot/time so scope prices aren't stale.
     const slot = BigInt(manifest.slot);
@@ -82,12 +78,12 @@ describe("LiteSVM: deterministic Kamino RefreshReserve from mainnet fixtures", f
     const ix = new TransactionInstruction({
       programId: K_LEND_PROGRAM_ID,
       keys: [
-        { pubkey: JLP_RESERVE, isWritable: true, isSigner: false },
-        { pubkey: JLP_LENDING_MARKET, isWritable: false, isSigner: false },
+        { pubkey: reserve, isWritable: true, isSigner: false },
+        { pubkey: lendingMarket, isWritable: false, isSigner: false },
         { pubkey: K_LEND_PROGRAM_ID, isWritable: false, isSigner: false },
         { pubkey: K_LEND_PROGRAM_ID, isWritable: false, isSigner: false },
         { pubkey: K_LEND_PROGRAM_ID, isWritable: false, isSigner: false },
-        { pubkey: SCOPE_ORACLE_ACCOUNT, isWritable: false, isSigner: false },
+        { pubkey: scopeOracle, isWritable: false, isSigner: false },
       ],
       data: DISC_REFRESH_RESERVE,
     });

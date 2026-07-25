@@ -1,10 +1,8 @@
 /**
- * Thin TransactionInstruction builders for THIS program's non-refinance
- * entrypoints (discriminants 0–7). Account orders mirror the Rust account
- * structs in program/src/protocols/{kamino,juplend}/actions.rs exactly.
- *
- * These are used by the tests to open a Kamino/Jupiter position before running
- * a refinance (same pattern as the reference suite).
+ * TransactionInstruction builders for the program's non-refinance entrypoints
+ * (discriminants 0–7). Account orders mirror the Rust structs in
+ * program/src/protocols/{kamino,juplend}/actions.rs. All asset-specific accounts
+ * come from the resolved PairContext (tests/market.ts) — nothing is hardcoded.
  */
 import {
   PublicKey,
@@ -19,21 +17,9 @@ import {
   K_LEND_PROGRAM_ID,
   K_FARMS_PROGRAM_ID,
   METADATA_PROGRAM_ID,
-  JLP_LENDING_MARKET,
-  JLP_LENDING_MARKET_AUTH,
-  JLP_RESERVE,
-  JLP_MINT,
-  JLP_SUPPLY_VAULT,
-  JLP_COLLATERAL_MINT,
-  JLP_COLLATERAL_VAULT,
-  USDC_RESERVE,
-  USDC_MINT,
-  USDC_SUPPLY_VAULT,
-  USDC_FEE_VAULT,
-  SCOPE_ORACLE_ACCOUNT,
-  SCOPE_ORACLE_ACCOUNT_2,
   JUP_LEND_BORROW_PROGRAM_ID,
 } from "./constants";
+import { PairContext } from "./market";
 import {
   u8,
   u16,
@@ -49,12 +35,13 @@ const ix = (keys: any[], data: Buffer) =>
 
 // --- INIT_KAMINO: user_metadata + obligation + obligation_farms (one reserve/mode)
 export function initKaminoIx(p: {
+  pair: PairContext;
   owner: PublicKey;
   userMetadata: PublicKey;
   obligation: PublicKey;
-  reserve: PublicKey;
+  reserve: PublicKey; // pair.collateral.reserve or pair.debt.reserve
   obligationFarmState: PublicKey;
-  reserveFarmState: PublicKey;
+  reserveFarmState: PublicKey; // the reserve's farm (collateral or debt)
   mode: number; // 0 = collateral farm, 1 = debt farm
 }): TransactionInstruction {
   return ix(
@@ -63,8 +50,8 @@ export function initKaminoIx(p: {
       meta(p.owner, false, true),
       meta(p.userMetadata, true),
       meta(p.obligation, true),
-      meta(JLP_LENDING_MARKET),
-      meta(JLP_LENDING_MARKET_AUTH),
+      meta(p.pair.market),
+      meta(p.pair.marketAuthority),
       meta(p.reserve, true),
       meta(p.obligationFarmState, true),
       meta(p.reserveFarmState, true),
@@ -76,80 +63,81 @@ export function initKaminoIx(p: {
   );
 }
 
-// --- DEPOSIT_KAMINO (JLP collateral)
+// --- DEPOSIT_KAMINO (collateral)
 export function depositKaminoIx(p: {
+  pair: PairContext;
   owner: PublicKey;
   obligation: PublicKey;
-  jlpAta: PublicKey;
-  jlpObligationFarmState: PublicKey;
-  jlpCollateralFarm: PublicKey;
+  collateralAta: PublicKey;
+  collateralObligationFarmState: PublicKey;
   amount: bigint;
   flags: number;
   reserveAccounts?: PublicKey[];
 }): TransactionInstruction {
+  const c = p.pair.collateral;
   const keys = [
     meta(K_LEND_PROGRAM_ID),
     meta(p.owner, false, true),
     meta(p.obligation, true),
-    meta(JLP_LENDING_MARKET),
-    meta(JLP_LENDING_MARKET_AUTH),
-    meta(JLP_RESERVE, true),
-    meta(JLP_MINT),
-    meta(JLP_SUPPLY_VAULT, true),
-    meta(JLP_COLLATERAL_MINT, true),
-    meta(JLP_COLLATERAL_VAULT, true),
-    meta(p.jlpAta, true),
+    meta(p.pair.market),
+    meta(p.pair.marketAuthority),
+    meta(c.reserve, true),
+    meta(c.liquidityMint),
+    meta(c.liquiditySupplyVault, true),
+    meta(c.collateralMint, true),
+    meta(c.collateralSupplyVault, true),
+    meta(p.collateralAta, true),
     meta(TOKEN_PROGRAM_ID), // collateral_token_program
     meta(TOKEN_PROGRAM_ID), // liquidity_token_program
     meta(SYSVAR_INSTRUCTIONS_PUBKEY),
-    meta(p.jlpObligationFarmState, true),
-    meta(p.jlpCollateralFarm, true),
+    meta(p.collateralObligationFarmState, true),
+    meta(c.collateralFarm, true),
     meta(K_FARMS_PROGRAM_ID),
-    meta(SCOPE_ORACLE_ACCOUNT), // scope_oracle (collateral)
-    meta(USDC_RESERVE, true), // borrow_reserve
-    meta(SCOPE_ORACLE_ACCOUNT_2), // scope_oracle_borrow
+    meta(c.scopeOracle), // scope_oracle (collateral)
+    meta(p.pair.debt.reserve, true), // borrow_reserve
+    meta(p.pair.debt.scopeOracle), // scope_oracle_borrow
     ...(p.reserveAccounts ?? []).map((r) => meta(r, true)),
   ];
   return ix(keys, Buffer.concat([u8(DISC.DEPOSIT_KAMINO), u64(p.amount), u8(p.flags)]));
 }
 
-// --- BORROW_KAMINO (USDC debt)
+// --- BORROW_KAMINO (debt)
 export function borrowKaminoIx(p: {
+  pair: PairContext;
   owner: PublicKey;
   obligation: PublicKey;
-  usdcAta: PublicKey;
-  usdcObligationFarmState: PublicKey;
-  usdcDebtFarm: PublicKey;
+  debtAta: PublicKey;
+  debtObligationFarmState: PublicKey;
   amount: bigint;
   flags: number;
   reserveAccounts?: PublicKey[];
 }): TransactionInstruction {
+  const d = p.pair.debt;
   const keys = [
     meta(K_LEND_PROGRAM_ID),
     meta(p.owner, false, true),
     meta(p.obligation, true),
-    meta(JLP_LENDING_MARKET),
-    meta(JLP_LENDING_MARKET_AUTH),
-    meta(JLP_RESERVE, true), // collateral_reserve
-    meta(USDC_RESERVE, true), // borrow_reserve
-    meta(USDC_MINT), // output_mint
-    meta(USDC_SUPPLY_VAULT, true), // reserve_borrow_supply
-    meta(USDC_FEE_VAULT, true), // fee_receiver
-    meta(p.usdcAta, true), // user_borrow_destination
+    meta(p.pair.market),
+    meta(p.pair.marketAuthority),
+    meta(p.pair.collateral.reserve, true), // collateral_reserve
+    meta(d.reserve, true), // borrow_reserve
+    meta(d.liquidityMint), // output_mint
+    meta(d.liquiditySupplyVault, true), // reserve_borrow_supply
+    meta(d.feeVault, true), // fee_receiver
+    meta(p.debtAta, true), // user_borrow_destination
     meta(TOKEN_PROGRAM_ID),
     meta(SYSVAR_INSTRUCTIONS_PUBKEY),
-    meta(p.usdcObligationFarmState, true),
-    meta(p.usdcDebtFarm, true),
+    meta(p.debtObligationFarmState, true),
+    meta(d.debtFarm, true),
     meta(K_FARMS_PROGRAM_ID),
-    meta(SCOPE_ORACLE_ACCOUNT), // scope_oracle_collateral
-    meta(SCOPE_ORACLE_ACCOUNT_2), // scope_oracle_borrow
-    ...(p.reserveAccounts ?? [JLP_RESERVE]).map((r) => meta(r, true)),
+    meta(p.pair.collateral.scopeOracle), // scope_oracle_collateral
+    meta(d.scopeOracle), // scope_oracle_borrow
+    ...(p.reserveAccounts ?? [p.pair.collateral.reserve]).map((r) => meta(r, true)),
   ];
   return ix(keys, Buffer.concat([u8(DISC.BORROW_KAMINO), u64(p.amount), u8(p.flags)]));
 }
 
 // --- DEPOSIT_AND_BORROW_JUPLEND (disc 6): open/grow a Jupiter loan via CPI.
-// keys = buildJupiterOperateAccounts(...); data = [disc][deposit u64][borrow u64][indices u8;3]
 export function depositAndBorrowJuplendIx(
   keys: any[],
   depositAmount: bigint,
