@@ -1,23 +1,9 @@
-/**
- * Solscan-in-the-terminal.
- *
- * Pretty-prints a Solana transaction the way an explorer would: header/status,
- * fee + compute, the account table with signer/writable roles, the instruction
- * list, and — the important part for this project — the full CPI tree with
- * stack heights, so you can *see* that the Kamino-restricted instruction runs at
- * stack height >= 2 (inside a CPI) rather than as a top-level instruction.
- *
- * It has no local-RPC / websocket dependency: everything is rendered from data
- * you already have (a fetched `getTransaction` response, a LiteSVM result, or a
- * raw simulation), so it works when there is no Solscan pointed at the cluster.
- */
 import {
   Connection,
   PublicKey,
   VersionedTransactionResponse,
 } from "@solana/web3.js";
 
-// ---- ANSI helpers ---------------------------------------------------------
 const useColor = process.env.NO_COLOR ? false : true;
 const c = (code: string) => (s: string | number) =>
   useColor ? `\x1b[${code}m${s}\x1b[0m` : `${s}`;
@@ -31,7 +17,6 @@ const magenta = c("35");
 const cyan = c("36");
 const gray = c("90");
 
-// ---- Known program labels -------------------------------------------------
 const PROGRAM_LABELS: Record<string, string> = {
   "11111111111111111111111111111111": "System Program",
   TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA: "SPL Token",
@@ -53,8 +38,6 @@ function label(programId: string): string {
 function short(addr: string): string {
   return addr.length <= 12 ? addr : `${addr.slice(0, 4)}…${addr.slice(-4)}`;
 }
-
-// ---- CPI tree from program logs ------------------------------------------
 export interface LogNode {
   programId: string;
   depth: number; // 1 == top-level (stack height)
@@ -130,7 +113,6 @@ function renderCpiNode(node: LogNode, prefix: string, isLast: boolean): string[]
   return out;
 }
 
-// ---- Normalized transaction shape ----------------------------------------
 export interface PrintableAccount {
   pubkey: string;
   signer: boolean;
@@ -274,8 +256,6 @@ export function printTransaction(tx: PrintableTx): void {
   L.push("");
   console.log(L.join("\n"));
 }
-
-// ---- Adapters -------------------------------------------------------------
 
 /** Fetch a confirmed transaction by signature and print it. */
 export async function printFetchedTransaction(

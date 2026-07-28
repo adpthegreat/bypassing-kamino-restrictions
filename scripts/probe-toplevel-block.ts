@@ -19,22 +19,38 @@ import {
 import BN from "bn.js";
 import { createCtx, prepare, openKaminoLoan } from "../tests/bootstrap";
 import { getRefinancePair, PairContext } from "../tests/market";
-import { RPC_URL, K_LEND_PROGRAM_ID, K_FARMS_PROGRAM_ID } from "../tests/constants";
+import {
+  RPC_URL,
+  K_LEND_PROGRAM_ID,
+  K_FARMS_PROGRAM_ID,
+} from "../tests/constants";
 import { Connection } from "@solana/web3.js";
-import { sendV0Tx, createLookupTable, meta, u64, TOKEN_PROGRAM_ID } from "../tests/utils";
+import {
+  sendV0Tx,
+  createLookupTable,
+  meta,
+  u64,
+  TOKEN_PROGRAM_ID,
+} from "../tests/utils";
 
 const { getJupLendRefinance } = require("../tests/jup_lend_loader.js");
 
 const DEPOSIT = 100_000_000n;
-const BORROW = 300_000_000n;
+const BORROW = 250_000_000n;
 const DISC_REFRESH_RESERVE = Buffer.from([2, 218, 138, 235, 79, 201, 25, 102]);
-const DISC_REFRESH_OBLIGATION = Buffer.from([33, 132, 147, 228, 151, 192, 72, 89]);
+const DISC_REFRESH_OBLIGATION = Buffer.from([
+  33, 132, 147, 228, 151, 192, 72, 89,
+]);
 const DISC_REPAY_V2 = Buffer.from([116, 174, 213, 76, 180, 53, 210, 144]);
 
 const klendIx = (keys: any[], data: Buffer) =>
   new TransactionInstruction({ programId: K_LEND_PROGRAM_ID, keys, data });
 
-function refreshReserveIx(pair: PairContext, reserve: PublicKey, scope: PublicKey) {
+function refreshReserveIx(
+  pair: PairContext,
+  reserve: PublicKey,
+  scope: PublicKey,
+) {
   return klendIx(
     [
       meta(reserve, true),
@@ -44,7 +60,7 @@ function refreshReserveIx(pair: PairContext, reserve: PublicKey, scope: PublicKe
       meta(K_LEND_PROGRAM_ID),
       meta(scope),
     ],
-    DISC_REFRESH_RESERVE
+    DISC_REFRESH_RESERVE,
   );
 }
 
@@ -56,13 +72,16 @@ function refreshObligationIx(pair: PairContext, obligation: PublicKey) {
       meta(pair.collateral.reserve, true),
       meta(pair.debt.reserve, true),
     ],
-    DISC_REFRESH_OBLIGATION
+    DISC_REFRESH_OBLIGATION,
   );
 }
 
 async function main() {
   const connection = new Connection(RPC_URL, "confirmed");
-  const pair = await getRefinancePair({ collateralSymbol: "JLP", debtSymbol: "USDC" });
+  const pair = await getRefinancePair({
+    collateralSymbol: "JLP",
+    debtSymbol: "USDC",
+  });
   const ctx = await createCtx(connection, pair);
   console.log("payer:", ctx.payer.publicKey.toBase58());
   await prepare(ctx);
@@ -70,8 +89,16 @@ async function main() {
   console.log("✓ Kamino loan open\n");
 
   // --- top-level KLend repay flow (repay some debt) ---
-  const refreshCol = refreshReserveIx(pair, pair.collateral.reserve, pair.collateral.scopeOracle);
-  const refreshDebt = refreshReserveIx(pair, pair.debt.reserve, pair.debt.scopeOracle);
+  const refreshCol = refreshReserveIx(
+    pair,
+    pair.collateral.reserve,
+    pair.collateral.scopeOracle,
+  );
+  const refreshDebt = refreshReserveIx(
+    pair,
+    pair.debt.reserve,
+    pair.debt.scopeOracle,
+  );
   const refreshObl = refreshObligationIx(pair, ctx.obligation);
   const repayIx = klendIx(
     [
@@ -91,7 +118,7 @@ async function main() {
       meta(pair.collateral.reserve, true), // reserve_accounts...
       meta(pair.debt.reserve, true),
     ],
-    Buffer.concat([DISC_REPAY_V2, u64(1_000_000n)]) // repay 1 unit of debt
+    Buffer.concat([DISC_REPAY_V2, u64(1_000_000n)]), // repay 1 unit of debt
   );
 
   // --- a bare TOP-LEVEL jupr81 (Jupiter Lend borrow program) instruction ---
@@ -107,16 +134,21 @@ async function main() {
     keys: [meta(ctx.payer.publicKey, false, true)],
     data: Buffer.from([217, 106, 208, 99, 116, 151, 42, 135]), // operate discriminator
   });
-  console.log("top-level program placed next to repay:", jupIx.programId.toBase58());
+  console.log(
+    "top-level program placed next to repay:",
+    jupIx.programId.toBase58(),
+  );
 
   const ixs = [refreshJlp, refreshUsdc, refreshObl, repayIx, jupIx];
   const alt = await createLookupTable(
     ctx.connection,
     ctx.payer,
-    ixs.flatMap((i) => i.keys.map((k) => k.pubkey))
+    ixs.flatMap((i) => i.keys.map((k) => k.pubkey)),
   );
 
-  console.log("\nsimulating: [refreshx2, refreshObligation, REPAY_V2 (top-level), jupr81 operate (top-level)]");
+  console.log(
+    "\nsimulating: [refreshx2, refreshObligation, REPAY_V2 (top-level), jupr81 operate (top-level)]",
+  );
   try {
     const sig = await sendV0Tx({
       connection: ctx.connection,
@@ -129,16 +161,23 @@ async function main() {
   } catch (e: any) {
     const logs: string[] = e.logs || e.transactionLogs || [];
     const joined = logs.join("\n") + "\n" + (e.message || "");
-    const blocked = /TransactionIncludesRestrictedPrograms|restricted/i.test(joined);
+    const blocked = /TransactionIncludesRestrictedPrograms|restricted/i.test(
+      joined,
+    );
     console.log("RESULT: tx REJECTED");
-    console.log("  raw message:", (e.message || "").split("\n").slice(0, 3).join(" | "));
+    console.log(
+      "  raw message:",
+      (e.message || "").split("\n").slice(0, 3).join(" | "),
+    );
     console.log("  blocked by Kamino restriction?", blocked ? "YES ✅" : "no");
     console.log(
       "  klend/restriction logs:\n    " +
         logs
-          .filter((l) => /KLend|restrict|Restricted|Error Code|Error Number|failed/i.test(l))
+          .filter((l) =>
+            /KLend|restrict|Restricted|Error Code|Error Number|failed/i.test(l),
+          )
           .slice(-8)
-          .join("\n    ")
+          .join("\n    "),
     );
   }
 }

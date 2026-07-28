@@ -8,11 +8,14 @@ import { getRefinancePair } from "../tests/market";
 import { RPC_URL } from "../tests/constants";
 
 const DEPOSIT = 100_000_000n;
-const BORROW = 300_000_000n;
+const BORROW = 250_000_000n;
 
 async function main() {
   const connection = new Connection(RPC_URL, "confirmed");
-  const pair = await getRefinancePair({ collateralSymbol: "JLP", debtSymbol: "USDC" });
+  const pair = await getRefinancePair({
+    collateralSymbol: "JLP",
+    debtSymbol: "USDC",
+  });
   const ctx = await createCtx(connection, pair);
   console.log("payer:", ctx.payer.publicKey.toBase58());
   console.log("obligation:", ctx.obligation.toBase58());

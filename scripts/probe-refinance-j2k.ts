@@ -14,11 +14,14 @@ import { Connection } from "@solana/web3.js";
 import { printFetchedTransaction } from "../tests/tx-printer";
 
 const DEPOSIT = 100_000_000n;
-const BORROW = 300_000_000n;
+const BORROW = 250_000_000n;
 
 async function main() {
   const connection = new Connection(RPC_URL, "confirmed");
-  const pair = await getRefinancePair({ collateralSymbol: "JLP", debtSymbol: "USDC" });
+  const pair = await getRefinancePair({
+    collateralSymbol: "JLP",
+    debtSymbol: "USDC",
+  });
   const ctx = await createCtx(connection, pair);
   console.log("payer:", ctx.payer.publicKey.toBase58());
 
@@ -37,7 +40,11 @@ async function main() {
   const sig = await refinanceJupiterToKamino(ctx, positionId, DEPOSIT, BORROW);
   console.log("  ✓ refinance sig:", sig);
   await new Promise((r) => setTimeout(r, 1500));
-  await printFetchedTransaction(ctx.connection, sig, "Jupiter → Kamino refinance (surfpool)");
+  await printFetchedTransaction(
+    ctx.connection,
+    sig,
+    "Jupiter → Kamino refinance (surfpool)",
+  );
 }
 
 main().catch((e) => {

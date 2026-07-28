@@ -263,9 +263,6 @@ export async function openJupiterPosition(
   await sendStep(ctx, "Open Jupiter Lend position", [ixn], { cuLimit: 600_000 });
 }
 
-// ---------------------------------------------------------------------------
-// Refinance helpers
-// ---------------------------------------------------------------------------
 import {
   buildJupiterOperateAccounts,
   buildKaminoBlock,

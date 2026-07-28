@@ -30,15 +30,7 @@ import { u8, u64, meta, TOKEN_PROGRAM_ID } from "./utils";
 
 type AccMeta = { pubkey: PublicKey; isWritable: boolean; isSigner: boolean };
 
-// ---------------------------------------------------------------------------
-// Jupiter operate account list (36 fixed, program struct order) + remaining
-// ---------------------------------------------------------------------------
-//
-// `accounts` is the object returned by @jup-ag/lend getRefinanceIx/getOperateContext.
-// null fields (claim accounts on a non-reward vault) become the vaults program id
-// placeholder — a readonly account the program forwards untouched.
-//
-// Writable/signer flags follow Jupiter's operate instruction requirements.
+
 const W = true;
 const R = false;
 
@@ -102,10 +94,10 @@ export function buildJupiterOperateAccounts(
   return metas;
 }
 
-// ---------------------------------------------------------------------------
+
 // Kamino unified block (order from refinance.rs KaminoAccounts::try_from_slice)
 // Starts with KLend program id — the boundary marker the program scans for.
-// ---------------------------------------------------------------------------
+
 export interface KaminoBlockParams {
   pair: PairContext;
   owner: PublicKey;
@@ -155,9 +147,6 @@ export function buildKaminoBlock(p: KaminoBlockParams): AccMeta[] {
   ];
 }
 
-// ---------------------------------------------------------------------------
-// Instruction data
-// ---------------------------------------------------------------------------
 export interface RefinanceAmounts {
   sourceRepay: bigint;
   sourceWithdraw: bigint;
@@ -184,9 +173,7 @@ function encodeRefinanceData(disc: number, a: RefinanceAmounts): Buffer {
   ]);
 }
 
-// ---------------------------------------------------------------------------
-// Top-level refinance instruction
-// ---------------------------------------------------------------------------
+
 export function buildRefinanceIx(opts: {
   direction: "kamino-to-jup" | "jup-to-kamino";
   jupiterAccounts: AccMeta[]; // from buildJupiterOperateAccounts

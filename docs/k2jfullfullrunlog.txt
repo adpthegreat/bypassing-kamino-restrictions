@@ -1,0 +1,145 @@
+  refinance: Kamino → Jupiter Lend (JLP/USDC)
+    ✔ opens a Kamino loan (11542ms)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SOLSCAN-in-terminal  Kamino → Jupiter refinance (JLP/USDC, surfpool)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Status   ● SUCCESS
+  Signature  MsH7EdCeNmLjzQHDRk7UT4qUgZRQcCLXJUBuwZ4S5vN9eTCWjexnku3pkv27mU5y8Uww752F5DcYY8qGJXrU1B2
+  Cluster  http://127.0.0.1:8899
+  Meta     slot 435,673,604  •  1970-01-21T15:53:32.000Z  •  v:0
+  Cost     fee 0.000005000 SOL  •  compute 437,931 CU
+
+  Accounts (57)
+     0  signer writable  EBYj9bVxfLfUnLUgn9dT8fYTm18mZuAmLNwcu4Cdncy3  
+     1         readonly  ComputeBudget111111111111111111111111111111  Compute Budget
+     2         readonly  jupgfSgfuAXv4B6R2Uxu85Z1qdzgju79s6MfZekN6XS  
+     3         readonly  DBQhaG61yYoQqvuKDp6G14BR4dY5qZXF54uQXcdGp1EG  
+     4         writable  ALXWtv2P4GqH1B7Lq731joag52yRBRqmHV4naiXPTYWL  
+     5         writable  2Rw7g62dpRoi2fV7eikKeCQjBTA9fnBFeqKgTrGkKxtx  
+     6         writable  94vK29npVbyRHXH63rRcTiSr26SFhrQTzbpNJuhQEDu  
+     7         writable  J9dyC4pBTBPvzzPh7J9rhFhg8RvgerDNKkUH9kEwGMsj  
+     8         writable  5pjzT5dFTsXcwixoab1QDLvZQvpYJxJeBphkyfHGn688  
+     9         writable  BmkUoKMFYBxNSzWXyUjyMJjMAaVz4d8ZnxwwmhDCUXFB  
+    10         writable  7s1da8DduuBFqGra5bJBjpnvL5E9mGzCuMk1Qkh4or2Z  
+    11         writable  jupr81YtYssSyPt8jbnGuiWon5f6x9TcDEFxYe3Bdzi  Jupiter Lend (Borrow)
+    12         writable  9dG1h8KhNNyaEZKQ5Saz8eePVjrtYBUMNJbys8TSBZ6u  
+    13         writable  DchXYJwVjPaEUxCiySXVbNyNppAFbQM7Ku76uKvyaDNT  
+    14         writable  7xL193GD5oUvhKBruYuNofMexMUztzujdzxw5UhaWL1U  
+    15         writable  6gdyTx1WmMM6fdjTkh9Hin18oUp5igLMDmcAStEJUDoi  
+    16         writable  FmgQmK9eqQTUxqXu79Nh3n5wEwvDdQcVt9YDMVapHAgS  
+    17         writable  AffeN4zSbNLXfa7CnxE4tX3S2otp3eUMhQK94NvGCxFy  
+    18         writable  JBtcN1USPvGUhmdrnV8K5RJQtKyYhSUK5bzjat6GcUn8  
+    19         writable  8eXSGrCNQr6fZq9HQ6KMtDJe2QVKjmx454iZ42sFCFK3  
+    20         writable  EKHQJ9fsEWWEpasCeDnst4ET6MCYbLpByGFu3nDtZrgc  
+    21         writable  2cYcYwTWHkiszdzDs8aPq1fkcpipJ8zVEzwCXo5RzXpx  
+    22         writable  EoLzKqeWxwD9ECxpUz17mfLt9JL1Y5A1kR7FwhJMxb2j  
+    23         writable  BDpgMQoAWbSFEjHHtF3kbytKQnJHr8FhFhRqc67x8AJE  
+    24         writable  9miY226e1qR9YgHfCE6hTKTxMRiyFZSUUTcdeZD6Ntmw  
+    25         writable  EJ6CLvJPJErjkUnPQicVahzw4Q4NHLfpDV9knoP7iqfK  
+    26         writable  Hy2FPcKStdmcJPZfc1VR1475ksDBnHQnnQuonX2RvS7t  
+    27         writable  4m7cjTjFM46XvsJ47YYqLgifUMBUE4NtCQWhH9rgJPJ9  
+    28         writable  SxXLsrAs7E3Et1ScX61H7dNTkrf7utgrcaLpWgY7TKK  
+    29         writable  DdTmCCjv7zHRD1hJv3E8bpnSEQBzdKkzB1j9ApXX5QoP  
+    30         writable  CHcHknV6KujiUVqVsQfJrqUcsifgJmWBzhUWyYibt1ss  
+    31         writable  G6LBmbbApvCrTGjMsPsxW43AGmzvcXa7P8x9yvHbek1f  
+    32         writable  7hWy6oHrmnG9Bq15BBC7GMphZSBvENGBLqE6A2DdjXRf  
+    33         writable  CernFX16b7XTBuaVmcjxc1GmtAzVKFZ9vwwh9CBhK1jo  
+    34         writable  Db5fLNHRbUfvQ71XK62APWGTbSTTKhDTAnknsYyZPLy4  
+    35         writable  Ga4rZytCpq1unD4DbEJ5bkHeUz9g3oh9AAFEi6vSauXp  
+    36         writable  GENey8es3EgGiNTM8H8gzA3vf98haQF8LHiYFyErjgrv  
+    37         writable  rywFxeqHfCWL5iGq9cDxutwiiR2TabZgzv8aRM1Lceq  
+    38         writable  7cVG7vJ7BrZ2G8p3LBQ8WekUe3QP7PxfNusUgyNUzcEJ  
+    39         writable  B7nzBEuViVtaQN8iEhhtBY4gQSxBY38ms31DUWUx1bza  
+    40         readonly  EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v  
+    41         readonly  jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC  
+    42         readonly  TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA  SPL Token
+    43         readonly  ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL  Associated Token
+    44         readonly  11111111111111111111111111111111  System Program
+    45         readonly  Sysvar1nstructions1111111111111111111111111  Instructions Sysvar
+    46         readonly  27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4  
+    47         readonly  2ut2BsiJP3DVdxvPvYWxuLgjHvx2nFLtxNM6j6GzdNYT  
+    48         readonly  F15vpsqy3x9sChSoCKfFQjdFPpDGsiHw3AdD6w2Xfmh7  
+    49         readonly  jupnw4B6Eqs7ft6rxpzYLJZYSnrpRgPcr589n5Kv4oc  
+    50         readonly  AyxByfn15hAEhR4G2jR89kqEXZwbaWX4sgyTpGCxSom8  
+    51         readonly  KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD  Kamino Lend (KLend)
+    52         readonly  DxXdAyU3kCjnyggvHmY5nAwg5cRbbmdyX3npfDMjjMek  
+    53         readonly  B9spsrMK6pJicYtukaZzDyzsUQLgc3jbx5gHVwdDxb6y  
+    54         readonly  FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr  Kamino Farms
+    55         readonly  3NJYftD5sjVfxSnUdZ1wVML8f3aC6mp1CXCL6L7TnU8C  
+    56         readonly  3t4JZcueEzTbVP6kLxXrL3VpWx45jDer4eqysweBchNH  
+
+  Instructions (5 top-level)
+    #1 Compute Budget Comp…1111 disc=2 5B 0 accts
+    #2 Compute Budget Comp…1111 disc=3 9B 0 accts
+    #3 Unknown Program jupg…N6XS disc=103 16B 14 accts
+    #4 Unknown Program DBQh…p1EG disc=10 37B 69 accts
+    #5 Unknown Program jupg…N6XS disc=213 16B 14 accts
+
+  CPI / stack-height tree
+    height 1 = top-level (visible to Instructions sysvar) · height ≥2 = inside a CPI
+    ├─ ✓ Compute Budget [height 1] Comp…1111
+    ├─ ✓ Compute Budget [height 1] Comp…1111
+    ├─ ✓ Unknown Program [height 1] jupg…N6XS 52,335 CU
+    │  └─ ✓ Unknown Program [height 2] jupe…3wZC 21,991 CU
+    │     └─ ✓ SPL Token [height 3] Toke…Q5DA 105 CU
+    ├─ ✓ Unknown Program [height 1] DBQh…p1EG 347,310 CU
+    │  ├─ ✓ Kamino Lend (KLend) [height 2] KLen…gmjD 21,933 CU
+    │  ├─ ✓ Kamino Lend (KLend) [height 2] KLen…gmjD 22,893 CU
+    │  ├─ ✓ Kamino Lend (KLend) [height 2] KLen…gmjD 29,673 CU
+    │  ├─ ✓ Kamino Lend (KLend) [height 2] KLen…gmjD 54,177 CU
+    │  │  ├─ ✓ SPL Token [height 3] Toke…Q5DA 105 CU
+    │  │  └─ ✓ Kamino Farms [height 3] Farm…91Hr 4,800 CU
+    │  ├─ ✓ Kamino Lend (KLend) [height 2] KLen…gmjD 13,511 CU
+    │  ├─ ✓ Kamino Lend (KLend) [height 2] KLen…gmjD 17,700 CU
+    │  ├─ ✓ Kamino Lend (KLend) [height 2] KLen…gmjD 52,198 CU
+    │  │  ├─ ✓ SPL Token [height 3] Toke…Q5DA 123 CU
+    │  │  ├─ ✓ SPL Token [height 3] Toke…Q5DA 105 CU
+    │  │  └─ ✓ Kamino Farms [height 3] Farm…91Hr 4,800 CU
+    │  └─ ✓ Jupiter Lend (Borrow) [height 2] jupr…Bdzi 116,910 CU
+    │     ├─ ✓ Unknown Program [height 3] jupn…v4oc 8,005 CU
+    │     ├─ ✓ Unknown Program [height 3] jupe…3wZC 4,383 CU
+    │     ├─ ✓ SPL Token [height 3] Toke…Q5DA 105 CU
+    │     ├─ ✓ Unknown Program [height 3] jupe…3wZC 13,403 CU
+    │     └─ ✓ Unknown Program [height 3] jupe…3wZC 16,180 CU
+    │        └─ ✓ SPL Token [height 4] Toke…Q5DA 105 CU
+    └─ … Unknown Program [height 1] jupg…N6XS 37,986 CU
+       ├─ ✓ Unknown Program [height 2] jupe…3wZC 4,385 CU
+       ├─ ✓ SPL Token [height 2] Toke…Q5DA 105 CU
+       └─ ✓ Unknown Program [height 2] jupe…3wZC 11,422 CU
+
+  SOL balance changes
+    EBYj9bVxfLfUnLUgn9dT8fYTm18mZuAmLNwcu4Cdncy3  +0.024160118 SOL
+    SxXLsrAs7E3Et1ScX61H7dNTkrf7utgrcaLpWgY7TKK  -0.024165120 SOL
+
+  Token balance changes
+    owner EBYj…ncy3  mint EPjF…Dt1v  -0.000006
+    owner 7s1d…or2Z  mint EPjF…Dt1v  -250
+    owner EBYj…ncy3  mint 27G8…idD4  -0.000001
+    owner 7s1d…or2Z  mint 27G8…idD4  +100.000001
+    owner B9sp…xb6y  mint 27G8…idD4  -100
+    owner B9sp…xb6y  mint G6LB…ek1f  -100
+    owner B9sp…xb6y  mint EPjF…Dt1v  +250.000006
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    ✔ migrates the position to Jupiter Lend (bypassing the Kamino restriction) (21289ms)
+
+──────────────────────────────────────────────────────────────────────────────
+  JLP → USDC · Kamino → Jupiter refinance — steps
+──────────────────────────────────────────────────────────────────────────────
+   1. Init Kamino obligation — collateral farm
+      https://solscan.io/tx/5TDWipcVxHVYHjpFxRqyjutbczeRGb3AL3DZB2WujLB1mbyeNGUKeSPHBPWSqh3Qkx2HhtWvgKQiwUUdA3TJJhVR?cluster=custom&customUrl=http://127.0.0.1:8899/
+   2. Init Kamino obligation — debt farm
+      https://solscan.io/tx/57fdB97VFFWvNdpmtZEBKAxtKVtkXo1NPzUMLbfvcBTBzgmJ1e83YzNJnpbuDzPCtfrMCLP17WtMYruy1GNtUF8z?cluster=custom&customUrl=http://127.0.0.1:8899/
+   3. Deposit collateral into Kamino
+      https://solscan.io/tx/3WhgnSkmGKJbQEfTtAuzyNd3atBGofwNmemBEFf3jMZbtrv9GkNQEkKbkxK2NaqZw82KJhfSikvpRB8jjDLsJeKM?cluster=custom&customUrl=http://127.0.0.1:8899/
+   4. Borrow debt from Kamino
+      https://solscan.io/tx/5zgSuvYxdQw5E3qcmNwwTmscT7NqKNhg9MrPz1DQ3tchnKMvQanDwa9cEagY4911N8ZKRchK1dsfr6SLtjHzzhJL?cluster=custom&customUrl=http://127.0.0.1:8899/
+   5. Open Jupiter Lend position
+      https://solscan.io/tx/pXuiunFzQoKV1wS4ao82hfuwf6yibucGgBhsgUHxA3TJm3E5QqVubSH6VG2dzKKXhBVJdNA4HP7Y5iEigp85CHm?cluster=custom&customUrl=http://127.0.0.1:8899/
+   6. Flashloan refinance: Kamino → Jupiter
+      https://solscan.io/tx/MsH7EdCeNmLjzQHDRk7UT4qUgZRQcCLXJUBuwZ4S5vN9eTCWjexnku3pkv27mU5y8Uww752F5DcYY8qGJXrU1B2?cluster=custom&customUrl=http://127.0.0.1:8899/
+──────────────────────────────────────────────────────────────────────────────
+
+
+  2 passing (42s)

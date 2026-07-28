@@ -34,9 +34,13 @@ import { RPC_URL } from "./constants";
 import { printFetchedTransaction } from "./tx-printer";
 
 const DEPOSIT = 100_000_000n;
-const BORROW = 300_000_000n;
+const BORROW = 250_000_000n;
 
-async function runCase(pair: PairContext, label: string, topLevelJupiter: boolean) {
+async function runCase(
+  pair: PairContext,
+  label: string,
+  topLevelJupiter: boolean,
+) {
   console.log(`\n${"=".repeat(74)}\n${label}\n${"=".repeat(74)}`);
   const connection = new Connection(RPC_URL, "confirmed");
   const ctx = await createCtx(connection, pair);
@@ -47,9 +51,15 @@ async function runCase(pair: PairContext, label: string, topLevelJupiter: boolea
   await tokenAirdrop(ctx, ctx.pair.debtMint, 5_000_000n); // fee buffer only — flashloan supplies the repay capital
 
   try {
-    const sig = await refinanceKaminoToJupiter(ctx, positionId, DEPOSIT, BORROW, {
-      topLevelJupiter,
-    });
+    const sig = await refinanceKaminoToJupiter(
+      ctx,
+      positionId,
+      DEPOSIT,
+      BORROW,
+      {
+        topLevelJupiter,
+      },
+    );
     await new Promise((r) => setTimeout(r, 1200));
     await printFetchedTransaction(ctx.connection, sig, label);
     console.log(`RESULT: ✅ transaction CONFIRMED`);
@@ -67,39 +77,46 @@ async function runCase(pair: PairContext, label: string, topLevelJupiter: boolea
     console.log(
       "  failing program:",
       blamed,
-      klendFailed ? "(Kamino guard fired)" : "(NOT the Kamino repay — see note)"
+      klendFailed
+        ? "(Kamino guard fired)"
+        : "(NOT the Kamino repay — see note)",
     );
     if (logs.length)
       console.log(
         "  key logs:\n    " +
           logs
-            .filter((l) => /restrict|sysvar|AnchorError|Error Message|failed/i.test(l))
+            .filter((l) =>
+              /restrict|sysvar|AnchorError|Error Message|failed/i.test(l),
+            )
             .slice(-4)
-            .join("\n    ")
+            .join("\n    "),
       );
     return { ok: false, blamed };
   }
 }
 
 async function main() {
-  const pair = await getRefinancePair({ collateralSymbol: "JLP", debtSymbol: "USDC" });
+  const pair = await getRefinancePair({
+    collateralSymbol: "JLP",
+    debtSymbol: "USDC",
+  });
   const bypass = await runCase(
     pair,
     "BYPASS — Jupiter nested in our CPI (height 2)",
-    false
+    false,
   );
   const control = await runCase(
     pair,
     "CONTROL — top-level Jupiter flashloan added (height 1)",
-    true
+    true,
   );
 
   console.log(`\n${"=".repeat(74)}\nSUMMARY\n${"=".repeat(74)}`);
   console.log(
-    `  BYPASS  (Jupiter nested at CPI height 2):  ${bypass.ok ? "ALLOWED ✅" : "blocked"}`
+    `  BYPASS  (Jupiter nested at CPI height 2):  ${bypass.ok ? "ALLOWED ✅" : "blocked"}`,
   );
   console.log(
-    `  CONTROL (jupr81 added at top-level):       ${control.ok ? "allowed" : "REJECTED ❌ by " + control.blamed}`
+    `  CONTROL (jupr81 added at top-level):       ${control.ok ? "allowed" : "REJECTED ❌ by " + control.blamed}`,
   );
   console.log(`
   MECHANISM (from klend source, handler_repay_obligation_liquidity.rs @ c060019):

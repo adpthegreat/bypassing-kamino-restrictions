@@ -23,7 +23,7 @@ function resolveProgramId(): string {
     );
     return Keypair.fromSecretKey(Uint8Array.from(secret)).publicKey.toBase58();
   } catch {
-    return "Gr4ofKMU4AFW9hpR1dYxbVBHjvXDw9d6LYpCscTc3xMD";
+    return "Gr4ofKMU4AFW9hpR1dYxbVBHjvXDw9d6LYpCscTc3xMD"; // FIX
   }
 }
 export const PROGRAM_ID = new PublicKey(resolveProgramId());
@@ -46,9 +46,6 @@ export const DISC = {
 export const FLAG_HAS_COLLATERAL = 1 << 0;
 export const FLAG_HAS_BORROWS = 1 << 1;
 
-// ---------------------------------------------------------------------------
-// External programs (not asset-specific)
-// ---------------------------------------------------------------------------
 export const K_LEND_PROGRAM_ID = new PublicKey(
   "KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD"
 );

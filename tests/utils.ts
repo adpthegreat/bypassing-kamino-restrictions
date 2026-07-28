@@ -1,11 +1,3 @@
-/**
- * Shared test utilities: Surfpool cheatcodes, a v0 transaction sender, Kamino
- * PDA derivations, on-chain reserve→farm parsing, and ATA helpers.
- *
- * Adapted from the jupiter-refinance-pinocchio reference test suite. The Kamino
- * PDAs are hand-rolled (facelifted from klend-sdk seeds.ts) so the tests do not
- * need the heavy @kamino-finance/klend-sdk dependency.
- */
 import {
   AddressLookupTableAccount,
   AddressLookupTableProgram,

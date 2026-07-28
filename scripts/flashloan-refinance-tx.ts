@@ -24,7 +24,7 @@ import { Connection } from "@solana/web3.js";
 import { printFetchedTransaction } from "../tests/tx-printer";
 
 const DEPOSIT = 100_000_000n;
-const BORROW = 300_000_000n;
+const BORROW = 250_000_000n;
 
 // solscan.io can read from a custom RPC — point it at the local surfnet.
 const solscanLink = (sig: string) =>
@@ -35,17 +35,28 @@ const solscanLink = (sig: string) =>
 // sync — too fresh (slot behind) right after start, or drifted (clock ahead)
 // after a long session. The "too fresh" case clears in a few slots, so retry.
 function isTimeMathError(e: any): boolean {
-  const blob = [e?.message, (e?.simulation?.logs || []).join("\n"), (e?.logs || []).join("\n")].join("\n");
-  return /No return data found in logs|LibraryMathError|LIBRARY_MATH_ERROR|MathOverflow|Math operation overflow|token_reserve\.rs|last_update\.rs/i.test(blob);
+  const blob = [
+    e?.message,
+    (e?.simulation?.logs || []).join("\n"),
+    (e?.logs || []).join("\n"),
+  ].join("\n");
+  return /No return data found in logs|LibraryMathError|LIBRARY_MATH_ERROR|MathOverflow|Math operation overflow|token_reserve\.rs|last_update\.rs/i.test(
+    blob,
+  );
 }
 
 async function runOnce() {
   const connection = new Connection(RPC_URL, "confirmed");
-  const pair = await getRefinancePair({ collateralSymbol: "JLP", debtSymbol: "USDC" });
+  const pair = await getRefinancePair({
+    collateralSymbol: "JLP",
+    debtSymbol: "USDC",
+  });
   const ctx = await createCtx(connection, pair);
   console.log("payer:", ctx.payer.publicKey.toBase58());
 
-  console.log(`\n[1] prepare + open a Kamino ${pair.collateralSymbol}/${pair.debtSymbol} loan…`);
+  console.log(
+    `\n[1] prepare + open a Kamino ${pair.collateralSymbol}/${pair.debtSymbol} loan…`,
+  );
   await prepare(ctx);
   await openKaminoLoan(ctx, DEPOSIT, BORROW);
 
@@ -57,14 +68,20 @@ async function runOnce() {
   // the capital to repay Kamino; the flashloan provides it.
   await tokenAirdrop(ctx, ctx.pair.debtMint, 5_000_000n);
 
-  console.log("[3] flashloan-sandwiched refinance (flash borrow → refinance → flash repay)…");
+  console.log(
+    "[3] flashloan-sandwiched refinance (flash borrow → refinance → flash repay)…",
+  );
   const sig = await refinanceKaminoToJupiter(ctx, positionId, DEPOSIT, BORROW);
   console.log("  ✓ signature:", sig);
 
   await new Promise((r) => setTimeout(r, 1500));
 
   // pretty print + dump raw JSON
-  await printFetchedTransaction(ctx.connection, sig, "Flashloan refinance (Kamino → Jupiter)");
+  await printFetchedTransaction(
+    ctx.connection,
+    sig,
+    "Flashloan refinance (Kamino → Jupiter)",
+  );
   const tx = await ctx.connection.getTransaction(sig, {
     maxSupportedTransactionVersion: 0,
     commitment: "confirmed",
@@ -73,7 +90,11 @@ async function runOnce() {
   const outPath = join(__dirname, "..", "refinance-flow.json");
   writeFileSync(
     outPath,
-    JSON.stringify({ signature: sig, rpc: RPC_URL, solscan, transaction: tx }, null, 2)
+    JSON.stringify(
+      { signature: sig, rpc: RPC_URL, solscan, transaction: tx },
+      null,
+      2,
+    ),
   );
   console.log("\n  JSON dumped -> refinance-flow.json");
   console.log(`\n  ► Solscan (pointed at the local surfnet):\n    ${solscan}`);
@@ -88,7 +109,7 @@ async function main() {
     } catch (e: any) {
       if (isTimeMathError(e) && attempt < MAX) {
         console.log(
-          `\n  (attempt ${attempt}/${MAX}) surfnet clock/accounts out of sync — waiting for slots to advance, retrying…`
+          `\n  (attempt ${attempt}/${MAX}) surfnet clock/accounts out of sync — waiting for slots to advance, retrying…`,
         );
         await new Promise((r) => setTimeout(r, 8000));
         continue;
@@ -100,14 +121,15 @@ async function main() {
 
 main().catch((e) => {
   console.error("\n✗ failed:", e.message || e);
-  if (e.simulation?.err) console.error("  simulation err:", JSON.stringify(e.simulation.err));
+  if (e.simulation?.err)
+    console.error("  simulation err:", JSON.stringify(e.simulation.err));
   if (isTimeMathError(e)) {
     console.error(
       "\n  Persistent surfpool clock drift (a long-running surfnet's clock runs ahead\n" +
         "  of the forked accounts, overflowing the protocols' time-based interest math).\n" +
         "  Restart surfpool for a fresh clock, then retry:\n" +
         "      pkill -f 'surfpool start'; surfpool start &   # re-deploys automatically\n" +
-        "      npm run flow:tx"
+        "      npm run flow:tx",
     );
   } else if (e.simulation?.logs) {
     console.error("  logs:\n    " + e.simulation.logs.slice(-8).join("\n    "));

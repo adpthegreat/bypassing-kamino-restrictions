@@ -1,22 +1,3 @@
-/**
- * Refinanceable-market finder.
- *
- * Pulls live market data from BOTH lending protocols and reports the token
- * pairs that can be refinanced between them, flagging any leg that is fully
- * utilized (no free liquidity → the borrow/withdraw leg would revert).
- *
- *   Jupiter Lend borrow vaults : GET https://lite-api.jup.ag/lend/v1/borrow/vaults
- *   Kamino reserves metrics    : GET https://api.kamino.finance/kamino-market/{market}/reserves/metrics
- *
- * A pair (collateral C, debt D) is refinanceable when Jupiter has a borrow
- * vault (supply=C, borrow=D) AND Kamino has reserves for both C and D in the
- * same market. To actually MOVE a position you also need free liquidity on the
- * destination debt reserve — that is the "fully utilized" check.
- *
- * Run:  yarn fetch-markets
- * Uses global fetch (Node >= 18). No SDK required — pure REST, client-side.
- */
-
 const JUP_LEND_BASE =
   process.env.JUP_LEND_API || "https://lite-api.jup.ag/lend/v1";
 const KAMINO_BASE = process.env.KAMINO_API || "https://api.kamino.finance";
@@ -24,9 +5,7 @@ const KAMINO_BASE = process.env.KAMINO_API || "https://api.kamino.finance";
 // Treat a reserve/vault as "fully utilized" at/above this utilization.
 const FULL_UTILIZATION_THRESHOLD = 0.99;
 
-// ---------------------------------------------------------------------------
-// Types (only the fields we use)
-// ---------------------------------------------------------------------------
+
 interface JupToken {
   address: string;
   symbol: string;
@@ -88,9 +67,6 @@ export async function getKaminoReserves(
   );
 }
 
-// ---------------------------------------------------------------------------
-// Analysis
-// ---------------------------------------------------------------------------
 function num(x: number | string | undefined): number {
   const n = typeof x === "string" ? parseFloat(x) : x ?? 0;
   return Number.isFinite(n) ? n : 0;

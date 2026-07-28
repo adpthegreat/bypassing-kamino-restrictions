@@ -14,11 +14,14 @@ import { RPC_URL } from "../tests/constants";
 import { printFetchedTransaction } from "../tests/tx-printer";
 
 const DEPOSIT = 100_000_000n;
-const BORROW = 300_000_000n;
+const BORROW = 250_000_000n;
 
 async function main() {
   const connection = new Connection(RPC_URL, "confirmed");
-  const pair = await getRefinancePair({ collateralSymbol: "JLP", debtSymbol: "USDC" });
+  const pair = await getRefinancePair({
+    collateralSymbol: "JLP",
+    debtSymbol: "USDC",
+  });
   const ctx = await createCtx(connection, pair);
   console.log("payer:", ctx.payer.publicKey.toBase58());
 
@@ -30,13 +33,19 @@ async function main() {
   const positionId = await nextJupiterPositionId(ctx);
   await openJupiterPosition(ctx, positionId);
 
-  console.log("[3] flashloan refinance (flash borrow → refinance → flash repay)…");
+  console.log(
+    "[3] flashloan refinance (flash borrow → refinance → flash repay)…",
+  );
   await tokenAirdrop(ctx, ctx.pair.debtMint, 5_000_000n); // fee buffer only — flashloan supplies the repay capital
   const sig = await refinanceKaminoToJupiter(ctx, positionId, DEPOSIT, BORROW);
   console.log("  ✓ refinance sig:", sig);
 
   await new Promise((r) => setTimeout(r, 1500));
-  await printFetchedTransaction(ctx.connection, sig, "Kamino → Jupiter refinance (surfpool)");
+  await printFetchedTransaction(
+    ctx.connection,
+    sig,
+    "Kamino → Jupiter refinance (surfpool)",
+  );
 }
 
 main().catch((e) => {

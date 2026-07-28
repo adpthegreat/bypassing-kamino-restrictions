@@ -1,9 +1,3 @@
-/**
- * TransactionInstruction builders for the program's non-refinance entrypoints
- * (discriminants 0–7). Account orders mirror the Rust structs in
- * program/src/protocols/{kamino,juplend}/actions.rs. All asset-specific accounts
- * come from the resolved PairContext (tests/market.ts) — nothing is hardcoded.
- */
 import {
   PublicKey,
   SYSVAR_INSTRUCTIONS_PUBKEY,
@@ -63,7 +57,6 @@ export function initKaminoIx(p: {
   );
 }
 
-// --- DEPOSIT_KAMINO (collateral)
 export function depositKaminoIx(p: {
   pair: PairContext;
   owner: PublicKey;
@@ -101,7 +94,6 @@ export function depositKaminoIx(p: {
   return ix(keys, Buffer.concat([u8(DISC.DEPOSIT_KAMINO), u64(p.amount), u8(p.flags)]));
 }
 
-// --- BORROW_KAMINO (debt)
 export function borrowKaminoIx(p: {
   pair: PairContext;
   owner: PublicKey;
@@ -137,7 +129,6 @@ export function borrowKaminoIx(p: {
   return ix(keys, Buffer.concat([u8(DISC.BORROW_KAMINO), u64(p.amount), u8(p.flags)]));
 }
 
-// --- DEPOSIT_AND_BORROW_JUPLEND (disc 6): open/grow a Jupiter loan via CPI.
 export function depositAndBorrowJuplendIx(
   keys: any[],
   depositAmount: bigint,
@@ -156,7 +147,7 @@ export function depositAndBorrowJuplendIx(
   );
 }
 
-// --- INIT_JUPITER_LEND (open a Jupiter Lend position)
+
 export function initJupiterIx(p: {
   owner: PublicKey;
   vaultAdmin: PublicKey;

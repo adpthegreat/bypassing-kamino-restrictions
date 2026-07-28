@@ -1,0 +1,92 @@
+
+```
+  refinance: Jupiter Lend → Kamino (JLP/USDC)
+    ✔ opens a Jupiter Lend loan (8054ms)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SOLSCAN-in-terminal  Jupiter → Kamino refinance (JLP/USDC, surfpool)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Status   ● SUCCESS
+  Signature  5Hk2Y3bttGmxK4j5vzFCh6oz9qiWiRc67PAadubMF8Tdfr4VXoHj8zCRDdZ4HTF6b6uKyh3AU4xKXLkGyUGKNGsA
+  Cluster  http://127.0.0.1:8899
+  Meta     slot 435,675,287  •  1970-01-21T15:53:33.000Z  •  v:0
+  Cost     fee 0.000005000 SOL  •  compute 410,032 CU
+
+  Accounts (57)
+     0  signer writable  Ci4yhTjrdmrXwpJ5ECXkPFEfRQv5gtF1MzqL5AdjmcUM  
+     1         readonly  ComputeBudget111111111111111111111111111111  Compute Budget
+     2         readonly  jupgfSgfuAXv4B6R2Uxu85Z1qdzgju79s6MfZekN6XS  
+     3         readonly  DBQhaG61yYoQqvuKDp6G14BR4dY5qZXF54uQXcdGp1EG  
+     4         writable  ALXWtv2P4GqH1B7Lq731joag52yRBRqmHV4naiXPTYWL  
+     5         writable  GMPBv2pdUfxd1WH5FryEZ1jK17XMXV1oXoMq8oF5bMnk  
+     6         writable  94vK29npVbyRHXH63rRcTiSr26SFhrQTzbpNJuhQEDu  
+     7         writable  J9dyC4pBTBPvzzPh7J9rhFhg8RvgerDNKkUH9kEwGMsj  
+
+  Instructions (5 top-level)
+    #1 Compute Budget Comp…1111 disc=2 5B 0 accts
+    #2 Compute Budget Comp…1111 disc=3 9B 0 accts
+    #3 Unknown Program jupg…N6XS disc=103 16B 14 accts
+    #4 Unknown Program DBQh…p1EG disc=11 37B 69 accts
+    #5 Unknown Program jupg…N6XS disc=213 16B 14 accts
+
+  CPI / stack-height tree
+    height 1 = top-level (visible to Instructions sysvar) · height ≥2 = inside a CPI
+    ├─ ✓ Compute Budget [height 1] Comp…1111
+    ├─ ✓ Compute Budget [height 1] Comp…1111
+    ├─ ✓ Unknown Program [height 1] jupg…N6XS 52,337 CU
+    │  └─ ✓ Unknown Program [height 2] jupe…3wZC 21,993 CU
+    │     └─ ✓ SPL Token [height 3] Toke…Q5DA 105 CU
+    ├─ ✓ Unknown Program [height 1] DBQh…p1EG 319,406 CU
+    │  ├─ ✓ Jupiter Lend (Borrow) [height 2] jupr…Bdzi 92,075 CU
+    │  │  ├─ ✓ Unknown Program [height 3] jupe…3wZC 4,385 CU
+    │  │  ├─ ✓ SPL Token [height 3] Toke…Q5DA 105 CU
+    │  │  ├─ ✓ Unknown Program [height 3] jupe…3wZC 13,066 CU
+    │  │  └─ ✓ Unknown Program [height 3] jupe…3wZC 16,199 CU
+    │  │     └─ ✓ SPL Token [height 4] Toke…Q5DA 105 CU
+    │  ├─ ✓ Kamino Lend (KLend) [height 2] KLen…gmjD 21,934 CU
+    │  ├─ ✓ Kamino Lend (KLend) [height 2] KLen…gmjD 4,490 CU
+    │  ├─ ✓ Kamino Lend (KLend) [height 2] KLen…gmjD 69,690 CU
+    │  │  ├─ ✓ SPL Token [height 3] Toke…Q5DA 105 CU
+    │  │  ├─ ✓ SPL Token [height 3] Toke…Q5DA 119 CU
+    │  │  └─ ✓ Kamino Farms [height 3] Farm…91Hr 4,841 CU
+    │  ├─ ✓ Kamino Lend (KLend) [height 2] KLen…gmjD 13,512 CU
+    │  ├─ ✓ Kamino Lend (KLend) [height 2] KLen…gmjD 22,520 CU
+    │  ├─ ✓ Kamino Lend (KLend) [height 2] KLen…gmjD 17,596 CU
+    │  └─ ✓ Kamino Lend (KLend) [height 2] KLen…gmjD 59,394 CU
+    │     ├─ ✓ SPL Token [height 3] Toke…Q5DA 105 CU
+    │     └─ ✓ Kamino Farms [height 3] Farm…91Hr 4,841 CU
+    └─ ✓ Unknown Program [height 1] jupg…N6XS 37,989 CU
+       ├─ ✓ Unknown Program [height 2] jupe…3wZC 4,385 CU
+       ├─ ✓ SPL Token [height 2] Toke…Q5DA 105 CU
+       └─ ✓ Unknown Program [height 2] jupe…3wZC 11,425 CU
+
+  SOL balance changes
+    Ci4yhTjrdmrXwpJ5ECXkPFEfRQv5gtF1MzqL5AdjmcUM  -0.000005002 SOL
+
+  Token balance changes
+    owner Ci4y…mcUM  mint EPjF…Dt1v  -0.000002
+    owner 7s1d…or2Z  mint EPjF…Dt1v  +250.000002
+    owner Ci4y…mcUM  mint 27G8…idD4  -0.000001
+    owner 7s1d…or2Z  mint 27G8…idD4  -99.999999
+    owner B9sp…xb6y  mint 27G8…idD4  +100
+    owner B9sp…xb6y  mint G6LB…ek1f  +100
+    owner B9sp…xb6y  mint EPjF…Dt1v  -250
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    ✔ migrates the position to Kamino via our program's CPI (5403ms)
+
+──────────────────────────────────────────────────────────────────────────────
+  JLP → USDC · Jupiter → Kamino refinance — steps
+──────────────────────────────────────────────────────────────────────────────
+   1. Init Kamino obligation — collateral farm
+      https://solscan.io/tx/1GuxxthagYJ11GhgyNn5PUrtoGsFzWu1r7n4bdPTDstbptEXZvYmHZzr6eSqxAfx5QL7aoNEourJ4CchCS9G42d?cluster=custom&customUrl=http://127.0.0.1:8899/
+   2. Init Kamino obligation — debt farm
+      https://solscan.io/tx/s8U2GGfL2b9icJqznYrHGcbvxanpEtXqzc8yc8twAnccUkk9MUpBkRaPdmoKKY9wwaePWfBZtt6Am5KFXrHF6Y6?cluster=custom&customUrl=http://127.0.0.1:8899/
+   3. Open Jupiter Lend position
+      https://solscan.io/tx/5Fmg2EmtT1ZQotYbsqHeqCTktpxk352Yo6bYVSFHMTtDZicHfEMFehDCHyzV4Zf37YJxHa2xrufgAWKoyhrh3ndR?cluster=custom&customUrl=http://127.0.0.1:8899/
+   4. Open Jupiter Lend loan (deposit + borrow)
+      https://solscan.io/tx/4fkj2MbaUszhX81V7BF2DtcZmb6cQBYrFvKCDt8eP6ZKNaGZ3go3n6DfBHgiAzNVmLH5F26vTD5HHGmVajwLWrMj?cluster=custom&customUrl=http://127.0.0.1:8899/
+   5. Flashloan refinance: Jupiter → Kamino
+      https://solscan.io/tx/5Hk2Y3bttGmxK4j5vzFCh6oz9qiWiRc67PAadubMF8Tdfr4VXoHj8zCRDdZ4HTF6b6uKyh3AU4xKXLkGyUGKNGsA?cluster=custom&customUrl=http://127.0.0.1:8899/
+  2 passing (27s)
+```

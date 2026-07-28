@@ -10,7 +10,7 @@
  * runs), this is fully deterministic: the same fixtures produce the same result
  * every time. It demonstrates the dump-fixtures → LiteSVM → solscan-printer
  * pipeline against real on-chain Kamino state.
- *
+
  * Run `yarn dump-fixtures` first to populate tests/fixtures/.
  *
  * NOTE: LiteSVM has no lazy account cloning, so the full cross-protocol refinance

@@ -32,7 +32,7 @@ import { printFetchedTransaction } from "./tx-printer";
 const COLLATERAL = "JLP";
 const DEBT = "USDC";
 const DEPOSIT = 100_000_000n; // raw collateral amount
-const BORROW = 300_000_000n; // raw debt amount
+const BORROW = 250_000_000n; // raw debt amount
 
 describe(`refinance: Kamino → Jupiter Lend (${COLLATERAL}/${DEBT})`, function () {
   this.timeout(200_000);
@@ -49,7 +49,11 @@ describe(`refinance: Kamino → Jupiter Lend (${COLLATERAL}/${DEBT})`, function 
   });
 
   after(() => {
-    if (ctx) printStepLinks(ctx, `${COLLATERAL} → ${DEBT} · Kamino → Jupiter refinance — steps`);
+    if (ctx)
+      printStepLinks(
+        ctx,
+        `${COLLATERAL} → ${DEBT} · Kamino → Jupiter refinance — steps`,
+      );
   });
 
   it("opens a Kamino loan", async () => {
@@ -67,14 +71,19 @@ describe(`refinance: Kamino → Jupiter Lend (${COLLATERAL}/${DEBT})`, function 
     // (flash borrow → refinance → flash repay) is what supplies it.
     await tokenAirdrop(ctx, ctx.pair.debtMint, 5_000_000n);
 
-    const sig = await refinanceKaminoToJupiter(ctx, positionId, DEPOSIT, BORROW);
+    const sig = await refinanceKaminoToJupiter(
+      ctx,
+      positionId,
+      DEPOSIT,
+      BORROW,
+    );
     expect(sig).to.be.a("string");
 
     await new Promise((r) => setTimeout(r, 1200));
     await printFetchedTransaction(
       ctx.connection,
       sig,
-      `Kamino → Jupiter refinance (${COLLATERAL}/${DEBT}, surfpool)`
+      `Kamino → Jupiter refinance (${COLLATERAL}/${DEBT}, surfpool)`,
     );
 
     const tx = await ctx.connection.getTransaction(sig, {
