@@ -206,7 +206,6 @@ export function printTransaction(tx: PrintableTx): void {
     });
   }
 
-  // CPI tree (the money shot)
   if (tx.logs?.length) {
     const tree = buildCpiTreeFromLogs(tx.logs);
     if (tree.length) {

@@ -27,6 +27,7 @@ import {
   openJupiterPosition,
   tokenAirdrop,
   refinanceKaminoToJupiter,
+  solscanLink,
 } from "./bootstrap";
 import { Connection } from "@solana/web3.js";
 import { getRefinancePair, PairContext } from "./market";
@@ -57,7 +58,7 @@ async function runCase(
       DEPOSIT,
       BORROW,
       {
-        topLevelJupiter,
+        topLevelJupiter, //change this lol looks weird with the naming
       },
     );
     await new Promise((r) => setTimeout(r, 1200));
@@ -65,8 +66,22 @@ async function runCase(
     console.log(`RESULT: ✅ transaction CONFIRMED`);
     return { ok: true, blamed: null as string | null };
   } catch (e: any) {
+    const signature = typeof e?.signature === "string" ? e.signature : undefined;
     const logs: string[] = e.logs || e.transactionLogs || [];
     console.log(`RESULT: ❌ transaction REJECTED`);
+    if (signature) {
+      console.log(`Check: ❌ ${solscanLink(signature)}`);
+      // RPC indexing can lag the failed confirmation slightly.
+      await new Promise((r) => setTimeout(r, 1200));
+      await printFetchedTransaction(ctx.connection, signature, `${label} (rejected)`);
+    } else {
+      console.log("Check: signature unavailable — the transaction was not accepted by the RPC");
+    }
+
+    console.log("\nRAW LOGS");
+    console.log(logs.length ? logs.join("\n") : "(no transaction logs returned by the RPC)");
+
+    console.log("\nEXPLANATION");
     console.log("  reason:", e.message?.split("\n")[0] || "(see logs)");
 
     // Which program actually failed? KLend failing == Kamino's guard fired.

@@ -237,7 +237,6 @@ export async function nextJupiterPositionId(ctx: Ctx): Promise<number> {
   return info.data.readUInt32LE(115);
 }
 
-/** Open a fresh Jupiter Lend position. */
 export async function openJupiterPosition(
   ctx: Ctx,
   positionId: number
@@ -344,16 +343,7 @@ function bareTopLevelJupr81(ctx: Ctx): TransactionInstruction {
   });
 }
 
-/**
- * Capital-free Kamino → Jupiter refinance. A Jupiter Lend flashloan supplies the
- * debt token to repay Kamino; the debt borrowed from Jupiter pays it back — one
- * atomic transaction, no upfront capital:
- *
- *   [ flash borrow ] [ refinance → CPIs Kamino repay/withdraw + Jupiter deposit/borrow ] [ flash repay ]
- *
- * `opts.topLevelJupiter` adds a bare top-level jupr81 ix (the control: the Kamino
- * repay's scan then sees the restricted program at height 1 and rejects).
- */
+
 export async function refinanceKaminoToJupiter(
   ctx: Ctx,
   positionId: number,
@@ -435,11 +425,6 @@ export async function openJupiterLoan(
   });
 }
 
-/**
- * Capital-free Jupiter → Kamino refinance. A flashloan supplies the debt token to
- * repay Jupiter; the debt borrowed from Kamino pays it back:
- *   [ flash borrow ] [ refinance → CPIs Jupiter repay/withdraw + Kamino deposit/borrow ] [ flash repay ]
- */
 export async function refinanceJupiterToKamino(
   ctx: Ctx,
   positionId: number,

@@ -588,7 +588,7 @@ So what the whole `refinance.rs` just does - parse the data, split the accounts,
 
 Every instruction this program exposes is a CPI into the mainnet deployed Kamino Lend and Jupiter Lend programs, operating on their real reserves, obligations, vaults, farms, oracles, etc.  
 
- So the tests run against genuine mainnet state, opting for two methods of doing them 
+ So the tests run against mainnet state, we opted for two methods of doing them
 
 - **Surfpool** — a tool for testing solana programs against the real mainnet state built on LiteSVM.
 It lazily clones an account the first time a transaction reads it, caches it locally, and lets subsequent transactions mutate that local copy. Because the clone is byte-identical to mainnet, your CPIs execute against the genuine KLend and Jupiter programs. This is where the full refinance runs.
@@ -597,17 +597,18 @@ It lazily clones an account the first time a transaction reads it, caches it loc
 
 ### The `tests/` layout
 
-The suite is deliberately split into small modules so the test files themselves stay a few lines long:
+The suite is split into small modules where each module handles a particular function 
 
 | File | Role |
 |---|---|
-| `constants.ts` | Contains all addresses, program id + the 10 discriminants, Kamino/Jupiter program ids. |
+| `constants.ts` | Contains all addresses, program id refunance program discriminants, Kamino/Jupiter program ids. |
 | `utils.ts` | surfpool cheatcode wrappers, the v0 transaction sender, lookup-table builder, and byte packers. |
 | `jup_lend_loader.js` | ESM→CJS bridge for `@jup-ag/lend` — the SDK ships as an ES module, the tests compile to CommonJS, so it's loaded through a cached dynamic `import()`. |
-| `program-instructions.ts` | `TransactionInstruction` builders for the single-action entrypoints (discriminants 0–7): Kamino init/deposit/borrow, Jupiter init and the combined operate. Account orders mirror the Rust structs exactly. |
-| `refinance-helpers.ts` | The refinance instruction (discriminants 10/11): mapping the SDK's Jupiter operate accounts into the program's 36-slot order and concatenating the Kamino block. |
-| `bootstrap.ts` | The orchestration layer: context factory, `prepare`, position openers, and all three refinance entry points (both directions plus the flashloan variant). |
-| `tx-printer.ts` | The Solscan-in-the-terminal formatter: status, account roles, instruction list, the CPI/stack-height tree, and SOL/token deltas — sourced from an RPC response *or* a LiteSVM result. |
+| `program-instructions.ts` | `TransactionInstruction` builders for the single-action entrypoints (discriminants 0–7): Kamino init/deposit/borrow, Jupiter init and the combined operate. |
+| `refinance-helpers.ts` | The refinance instruction (discriminants 10/11): mapping the SDK's Jupiter operate accounts into the program's 36 account order and concatenating the Kamino block. |
+| `bootstrap.ts` | The orchestration layer: context factory, `prepare`, position openers, and all three refinance entry points (both directions plus the flashloan variant).
+
+| `tx-printer.ts` | Helper to format a transction in the form of the solscan explorer, showing: status, account roles, instruction list, the CPI/stack-height tree, and SOL/token deltas — sourced from an RPC response *or* a LiteSVM result. |
 | `refinance-kamino-to-jup.ts` / `refinance-jup-to-kamino.ts` | The two surfpool integration tests (mocha), one per direction. |
 | `litesvm-refinance.ts` | The deterministic LiteSVM test driven by dumped fixtures. |
 | `flashloan-bypass-demo.ts` | The bypass-vs-control experiment that proves the restriction is real. |
@@ -618,7 +619,7 @@ Development scripts live alongside in `scripts/`: `dump-fixtures.ts` (snapshot m
 
 ### How surfpool boots and deploys itself
 
-Starting surfpool forks mainnet and deploys the program in the same breath. The repo ships a txtx deployment runbook with `instant_surfnet_deployment = true`, which writes the program bytes straight into the program account via a cheatcode instead of sending a real multi-transaction BPF upload. The program id it lands at is the cargo-generated keypair, and `constants.ts` resolves `PROGRAM_ID` from that keypair automatically, so nothing needs wiring by hand:
+Starting surfpool forks mainnet and deploys the program in the same breath. The repo ships a txtx deployment runbook with `instant_surfnet_deployment = true`, which writes the program bytes straight into the program account via a cheatcode instead of sending a real multi-transaction BPF upload. The program id it lands at is the cargo-generated keypair, and `constants.ts` resolves `PROGRAM_ID` from that keypair automatically.
 
 ```bash
 surfpool start          # fork mainnet + instant-deploy the program
@@ -626,20 +627,19 @@ npm run test:kamino-to-jup
 npm run test:jup-to-kamino
 ```
 
-
 ### The cheatcodes ([docs.surfpool.run](https://docs.surfpool.run/))
 
-A fresh fork has no wallets and no balances, so the tests manually set state rather . Surfpool exposes 26 `surfnet_*` JSON-RPC methods for this (the full [cheatcodes reference](https://docs.surfpool.run/) groups them into account manipulation, program management, time control, profiling, and snapshots). The suite leans on a handful:
+A fresh fork has no wallets and no balances, so the tests manually set state rather. Surfpool exposes 26 `surfnet_*` JSON-RPC methods call `cheatcodes` for this (the full [cheatcodes reference](https://docs.surfpool.run/) groups them into account manipulation, program management, time control, profiling, and snapshots). We only use three of them:
 
 | Cheatcode | What it does | Used for |
 |---|---|---|
 | `surfnet_setAccount` | Set an account's lamports/data/owner/executable directly, no transaction. | Funding the payer with SOL. |
-| `surfnet_setTokenAccount` | Set an SPL token account's balance/state for any owner+mint (creating the ATA). | Giving the payer JLP and USDC. |
+| `surfnet_setTokenAccount` | Set an SPL token account's balance/state for any owner+mint (creating the ATA). | Giving the payer some JLP and USDC. |
 | `surfnet_streamAccount` | Register an account for *live streaming* — re-fetch it from mainnet on every access instead of caching the clone. | Keeping the scope price feeds and Jupiter accounts fresh. |
 
 ### The helpers (`utils.ts`)
 
-Each cheatcode is a one-line wrapper that POSTs the JSON-RPC method to the connection's endpoint:
+Each cheatcode is a one-line wrapper that POSTs the JSON-RPC method to the local surfpool RPC connection's endpoint:
 
 ```ts
 surfnetAirdrop(conn, payer, 1000 * LAMPORTS_PER_SOL);   // → surfnet_setAccount
@@ -647,20 +647,114 @@ surfnetTokenAirdrop(conn, payer, JLP_MINT, amount);      // → surfnet_setToken
 surfnetStreamAccount(conn, SCOPE_ORACLE_ACCOUNT);        // → surfnet_streamAccount
 ```
 
-The rest of the toolbox:
+The rest of the toolbox contains helpers such as:
 
 - **`sendV0Tx({ ixs, lookupTables, cuLimit, cuPrice })`** — prepends `ComputeBudget` limit + price instructions, compiles a **v0** message (so it can carry address lookup tables), signs with the payer, sends with retries, and confirms. Every test transaction goes through it. The refinance runs at `cuLimit: 1_400_000`; the setup instructions default to `400_000`.
-- **`obligationAccount` / `userMetadataAccount` / `obligationFarmStatePda`** — Kamino PDAs, hand-derived from klend's seeds so the suite avoids pulling in the heavyweight `@kamino-finance/klend-sdk`.
-- **`getReserveFarms(conn, reserve)`** — reads a reserve's collateral and debt farm addresses directly from the account bytes (`64..96` and `96..128`), since they aren't derivable PDAs.
+- **`obligationAccount` / `userMetadataAccount` / `obligationFarmStatePda`** — Kamino PDAs, hand-derived from klend's seeds so the suite avoids pulling in the heavy `@kamino-finance/klend-sdk`.
+- **`getReserveFarms(conn, reserve)`** — reads a reserve's collateral and debt farm addresses directly from the account bytes using the offsets (`64..96` and `96..128`), since they aren't derivable PDAs.
 - **`getAtaAddress(mint, owner)`** — associated token address with `allowOwnerOffCurve` so it also resolves for PDAs.
 - **`createLookupTable(conn, payer, addresses)`** — creates an ALT, extends it in chunks of 20, and polls until it's populated. Load-bearing: the refinance instruction references ~69 accounts, which a legacy transaction can't hold.
-- **`u8 / u16 / u32 / u64 / meta`** — little-endian byte packers and an `AccountMeta` shorthand for hand-assembling instruction data (the program is Pinocchio, so there's no generated client doing this).
+- **`u8 / u16 / u32 / u64 / meta`** — little-endian byte packers and an `AccountMeta` shorthand for manually assembling instruction data we have to do this since we have to automatically generated client. 
 
-### End to end: one Kamino → Jupiter test
+### Finding refinanceable markets between jupiter lend and kamino finance (`fetch-refinanceable-markets.ts`)
+
+Another helper is provided called `findRefinanceableMarkets(..)` from `fetch-refinanceable-markets.ts` It pulls Jupiter Lend's borrow vaults (`lite-api.jup.ag/lend/v1/borrow/vaults`) and Kamino's reserve metrics (`api.kamino.finance`), cross-references them by mint, and reports the collateral/debt pairs that exist on **both** venues. It also checks any legs whose utilisation is so high there's no free liquidity to borrow (which would make the destination borrow revert) is flagged.
+Future implementations eg building a frontend for a refinance tool will be built on this.
+
+### Testing and proving the existence of the the restriction(`flashloan-bypass-demo.ts`)
+
+To show the restriction isn't hypothetical, this script runs the same economic operation twice and prints both. The **bypass** is the normal refinance (Jupiter nested in the CPI) and it confirms. The **control** injects a single bare `jupr81` instruction at the *top level* of the transaction; Kamino's repay scan now finds the restricted program and the transaction reverts with `TransactionIncludesRestrictedPrograms` (error `6134` / `0x17f6`). Same accounts, same amounts — the only difference is where in the call stack `jupr81` sits.
+
+```
+CONTROL — top-level Jupiter flashloan added (height 1)
+==========================================================================
+RESULT: ❌ transaction REJECTED
+Check: signature unavailable — the transaction was not accepted by the RPC
+
+RAW LOGS
+Program ComputeBudget111111111111111111111111111111 invoke [1]
+Program ComputeBudget111111111111111111111111111111 success
+Program ComputeBudget111111111111111111111111111111 invoke [1]
+Program ComputeBudget111111111111111111111111111111 success
+Program jupgfSgfuAXv4B6R2Uxu85Z1qdzgju79s6MfZekN6XS invoke [1]
+Program log: Instruction: FlashloanBorrow
+Program jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC invoke [2]
+Program log: Instruction: Operate
+Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA invoke [3]
+Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA consumed 105 of 1350081 compute units
+Program TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA success
+Program data: tAhRRxOErQiKubi8A9XiCxFAx4t15UeudUkWFSJ/lIEmi+AOw3Qz8cb6evO+2606PWXzaqvJdDGxu+TC0vbg5HymAgNFL11hAAAAAAAAAAAAAAAAAAAAAICy5g4AAAAAAAAAAAAAAABl9d/9fISvdail973OoWIuKzq/h/xTqHG5CFYaOosb3jUp3LLAnN6L+0ko6Qn+cPh0/0NiltStdUqWUiQiTz60ACvM4PAAAAAX9sb28wAAAA==
+Program jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC consumed 21984 of 1370442 compute units
+Program return: jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC ACvM4PAAAAAX9sb28wAAAA==
+Program jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC success
+Program jupgfSgfuAXv4B6R2Uxu85Z1qdzgju79s6MfZekN6XS consumed 52930 of 1399700 compute units
+Program return: jupgfSgfuAXv4B6R2Uxu85Z1qdzgju79s6MfZekN6XS ACvM4PAAAAAX9sb28wAAAA==
+Program jupgfSgfuAXv4B6R2Uxu85Z1qdzgju79s6MfZekN6XS success
+Program DBQhaG61yYoQqvuKDp6G14BR4dY5qZXF54uQXcdGp1EG invoke [1]
+Program KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD invoke [2]
+Program log: Instruction: RefreshReserve
+Program log: Token: JLP Price: 3.5817
+Program KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD consumed 21938 of 1343785 compute units
+Program KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD success
+Program KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD invoke [2]
+Program log: Instruction: RefreshReserve
+Program log: Token: USDC Price: 0.9997
+Program KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD consumed 22961 of 1320323 compute units
+Program KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD success
+Program KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD invoke [2]
+Program log: Instruction: RefreshObligation
+Program log: Borrow: USDC amount: 250000001.2429 value: 249.9322 value_bf: 249.9322
+Program log: Deposit: JLP amount: 100000000.0000 value: 358.1726
+Program KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD consumed 29550 of 1295909 compute units
+Program KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD success
+Program KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD invoke [2]
+Program log: Instruction: RepayObligationLiquidityV2
+Program log: AnchorError caused by account: instruction_sysvar_account. Error Code: TransactionIncludesRestrictedPrograms. Error Number: 6134. Error Message: Transaction includes restricted programs.
+Program KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD consumed 23154 of 1264121 compute units
+Program KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD failed: custom program error: 0x17f6
+Program DBQhaG61yYoQqvuKDp6G14BR4dY5qZXF54uQXcdGp1EG consumed 105803 of 1346770 compute units
+Program DBQhaG61yYoQqvuKDp6G14BR4dY5qZXF54uQXcdGp1EG failed: custom program error: 0x17f6
+
+EXPLANATION
+  reason: Simulation failed. 
+  failing program: KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD (Kamino guard fired)
+  key logs:
+    Program log: AnchorError caused by account: instruction_sysvar_account. Error Code: TransactionIncludesRestrictedPrograms. Error Number: 6134. Error Message: Transaction includes restricted programs.
+    Program KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD failed: custom program error: 0x17f6
+    Program DBQhaG61yYoQqvuKDp6G14BR4dY5qZXF54uQXcdGp1EG failed: custom program error: 0x17f6
+
+==========================================================================
+SUMMARY
+==========================================================================
+  BYPASS  (Jupiter nested at CPI height 2):  ALLOWED ✅
+  CONTROL (jupr81 added at top-level):       REJECTED ❌ by KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD
+
+  MECHANISM (from klend source, handler_repay_obligation_liquidity.rs @ c060019):
+    RepayObligationLiquidityV2 enforces
+        constraint = ix_utils::no_restricted_programs_within_tx(instruction_sysvar)
+    which iterates EVERY top-level instruction (IxIterator from index 0, via
+    load_instruction_at_checked) and fails with TransactionIncludesRestrictedPrograms
+    (error 6134 / 0x17f6) if any program_id is in RESTRICTED_PROGRAMS = [ jupr81YtY… ]
+    (Jupiter's BORROW program). The instructions sysvar only holds top-level ixs.
+
+  BYPASS  — our program nests every jupr81 interaction inside its CPI (height 2),
+            where the top-level-only sysvar scan cannot see it → refinance allowed.
+  CONTROL — a bare jupr81 instruction at the top level → the Kamino repay's scan
+            finds it → TransactionIncludesRestrictedPrograms. Reproduced in surfpool.
+
+  IMPORTANT: it must be jupr81 ITSELF at the top level. The Jupiter SDK's operate/
+  refinance instruction targets jup8… (a router that CPIs jupr81), so jupr81 stays
+  nested there and does NOT trip the guard — an earlier version of this control used
+  that ix and wrongly appeared "not blocked". The restriction is hardcoded in the
+  klend program (a const), NOT config state, and surfpool/LiteSVM enforces it.
+```
+
+
+## End to end: Testing the full refinance flow 
 
 Put together, a single test run is a sequence of real transactions against the fork:
 
-1. **`prepare(ctx)`** — stream the two scope feeds + the 8 Jupiter Lend accounts, airdrop the payer 1000 SOL, resolve both reserves' farm addresses.
+1. **`prepare(ctx)`** — stream the two scope oracle feeds + the 8 Jupiter Lend accounts, airdrop the payer 1000 SOL, resolve both kamino reserves' farm addresses.
 2. **`openKaminoLoan(ctx)`** — four transactions: init the collateral farm state, init the debt farm state, deposit JLP, borrow USDC. The **first** deposit passes `flags = 0` (the fresh obligation holds no reserves, and `RefreshObligation` rejects a mismatched count); the borrow passes `FLAG_HAS_COLLATERAL` once the deposit has registered collateral. A small USDC airdrop before the borrow creates the destination ATA.
 3. **`nextJupiterPositionId(ctx)`** — read the vault-state counter (`u32` at offset 115) for the next free id; **`openJupiterPosition`** initialises the empty destination.
 4. **Build the refinance** — pull the Jupiter operate accounts from the SDK, reshape them into the program's 36-slot fixed order, append the Kamino block (which *must* begin with the KLend program id, the boundary marker the program scans for), and encode the 37-byte payload.
@@ -675,103 +769,7 @@ await openJupiterPosition(ctx, positionId);
 const sig = await refinanceKaminoToJupiter(ctx, positionId, JLP_DEPOSIT_AMOUNT, USDC_BORROW_AMOUNT);
 ```
 
-> *Screenshot: the confirmed Kamino → Jupiter refinance in the surfpool Studio explorer (or solscan pointed at the local RPC).*
-> ![Kamino → Jupiter refinance (surfpool)](docs/screenshots/k2j-surfpool.png)
-
-`refinance-jup-to-kamino.ts` is the mirror — open the loan on Jupiter Lend, migrate it back to Kamino — asserting the same way.
-
-> *Screenshot: the Jupiter → Kamino refinance (mirror direction).*
-> ![Jupiter → Kamino refinance (surfpool)](docs/screenshots/j2k-surfpool.png)
-
-Since surfpool serves a normal RPC, any signature opens in the real solscan.io UI pointed at the fork:
-
-```text
-https://solscan.io/tx/<SIGNATURE>?cluster=custom&customUrl=http://127.0.0.1:8899/
-```
-
-### The capital-free variant: the flashloan sandwich
-
-The tests above pre-fund the USDC needed to repay Kamino, to isolate the program's CPI wiring. `bootstrap.ts` also has `flashloanRefinanceKaminoToJupiter`, which makes the refinance capital-free by wrapping it in a Jupiter Lend flashloan — one atomic transaction, three top-level instructions:
-
-```text
-[ flash borrow USDC ]  (jupg…, unrestricted)
-[ refinance ]          (our program → Kamino repay/withdraw + Jupiter deposit/borrow, all at height 2)
-[ flash repay USDC ]   (jupg…)
-```
-
-Note the flashloan program is `jupg…`, *not* `jupr81` — only the borrow program is on Kamino's restricted list, so a top-level flashloan doesn't trip the scan. `scripts/flashloan-refinance-tx.ts` runs this end to end and dumps the transaction JSON for the flow diagram.
-
-### Reading the result (`tx-printer.ts`)
-
-A green checkmark doesn't show *why* the bypass works. `tx-printer.ts` reconstructs the transaction as a call tree from the program logs (`Program X invoke [depth]` / `success` / `consumed …`), tagging each node with its stack height and compute. Printed, the exploit is visible in one glance: the refinance program is the only node at **height 1** — the level Kamino's sysvar scan can see — and every Kamino and Jupiter call sits at **height 2 or deeper**, out of reach. The same output renders the account table with signer/writable roles and the SOL/token deltas, so you can confirm the position actually changed venues rather than just that the transaction didn't revert.
-
-> *Screenshot: the terminal CPI tree — refinance program at height 1, KLend and jupr81 nested at height 2.*
-> ![CPI / stack-height tree](docs/screenshots/cpi-tree.png)
-
-### Proving the restriction is real (`flashloan-bypass-demo.ts`)
-
-To show the restriction isn't hypothetical, this script runs the same economic operation twice and prints both. The **bypass** is the normal refinance (Jupiter nested in the CPI) and it confirms. The **control** injects a single bare `jupr81` instruction at the *top level* of the transaction; Kamino's repay scan now finds the restricted program and the transaction reverts with `TransactionIncludesRestrictedPrograms` (error `6134` / `0x17f6`). Same accounts, same amounts — the only difference is where in the call stack `jupr81` sits.
-
-> *Screenshot: the demo output — BYPASS allowed, CONTROL rejected by KLend with error 6134.*
-> ![Bypass vs control](docs/screenshots/bypass-vs-control.png)
-
-### LiteSVM: deterministic fixtures
-
-The full refinance won't reasonably run in LiteSVM — with no lazy cloning you'd have to load six programs plus their programdata and ~60 data accounts and keep every one consistent. So LiteSVM covers the self-contained checks, where its determinism earns its keep. There are two ways to get the fixtures:
-
-- **`scripts/dump-fixtures.ts`** — snapshot mainnet directly: each account as base64 with owner/lamports, each program via `solana program dump`, and the source slot recorded in a manifest.
-- **`surfnet_exportSnapshot`** — have surfpool export the *pre-execution* account state of a specific transaction as JSON, which is exactly the deterministic fixture set for that transaction (reloadable with `surfpool start --snapshot`).
-
-Either way, the test loads them and — the critical step — pins the SVM clock to the fixture slot. Kamino computes interest from `slots_elapsed` and validates its scope price against a timestamp, so a clock that doesn't match the fixtures underflows and reverts. Note `Clock` needs all five fields as `bigint`; a bare `new Clock()` throws:
-
-```ts
-const svm = new LiteSVM().withSplPrograms().withSysvars();
-svm.addProgramFromFile(K_LEND_PROGRAM_ID, "fixtures/klend.so");
-svm.setAccount(reserve, { data, owner, lamports, executable, rentEpoch: 0 });
-// Clock(slot, epochStartTimestamp, epoch, leaderScheduleEpoch, unixTimestamp)
-svm.setClock(new Clock(slot, ts, epoch, epoch, ts));
-
-const res = svm.sendTransaction(tx);        // e.g. a Kamino RefreshReserve
-printLiteSVMResult({ logs: res.logs(), computeUnits: res.computeUnitsConsumed() });
-```
-
-It prints through the same formatter as the surfpool tests, only sourced from LiteSVM's own logs — byte-identical on every run.
-
-> *Screenshot: the LiteSVM printout for the Kamino RefreshReserve executed against dumped fixtures.*
-> ![LiteSVM printout](docs/screenshots/litesvm-refreshreserve.png)
-
-### Finding something to refinance (`fetch-refinanceable-markets.ts`)
-
-A separate, network-only helper answers "what can even be refinanced?" It pulls Jupiter Lend's borrow vaults (`lite-api.jup.ag/lend/v1/borrow/vaults`) and Kamino's reserve metrics (`api.kamino.finance`), cross-references them by mint, and reports the collateral/debt pairs that exist on **both** venues — flagging any leg whose utilisation is so high there's no free liquidity to borrow (which would make the destination borrow revert). It needs no validator, just `fetch`, and is how the JLP/USDC pair was chosen for the tests.
-
-### The recurring headache: drift, and how to survive it
-
-Two clocks drift on a mainnet fork, and both surface as opaque math errors.
-
-An oracle cloned once is frozen at clone time while the network clock advances, so its price ages out and the protocols reject it, that's why `prepare()` **streams** the scope feeds (`surfnet_streamAccount`) instead of trusting the lazy clone. The subtler one is the surfnet's own clock: it ticks forward on its own (~one slot per 400 ms) and over a long session runs *ahead* of the forked accounts, at which point the time-based interest math overflows — Kamino returns `MathOverflow` (`last_update.rs`), Jupiter returns `LIBRARY_MATH_ERROR`, which the SDK reports as the unhelpful `No return data found in logs`. It appears two ways:
-
-- **Too fresh** — right after startup the surfnet slot can be briefly *behind* a just-cloned reserve's `last_update`, so `slots_elapsed` underflows. This clears within a few slots, so the flow scripts **retry** it automatically.
-- **Drifted** — after a long session the clock is too far *ahead*. `surfnet_timeTravel` only moves forward and `surfnet_resetNetwork` wipes the deployed program, so the fix is to **restart** the surfnet (it re-runs the deploy runbook) for a fresh clock.
-
-One last operational note: run surfpool against a dedicated RPC — `surfpool start --rpc-url <provider>` — or the free public endpoint will rate-limit the lazy clone and you'll see `Failed to fetch accounts from remote` on transactions that touch many not-yet-cached accounts.
-
-### Running the whole thing
-
-```bash
-surfpool start &                     # fork + auto-deploy
-npm run test:kamino-to-jup           # surfpool: Kamino → Jupiter
-npm run test:jup-to-kamino           # surfpool: Jupiter → Kamino
-npm run flashloan-demo               # bypass vs control
-npm run flow:tx                      # flashloan refinance + JSON dump
-
-npm run dump-fixtures                # snapshot mainnet for LiteSVM
-npm run test:litesvm                 # deterministic LiteSVM check
-
-npm run fetch-markets                # refinanceable pairs + utilisation (no validator)
-npm run print-tx <signature>         # solscan-style dump of any transaction
-```
-
-## Running the Kamino to Jupiter Lend Refinance
+### Running the Kamino to Jupiter Lend Refinance
 
 Now that we have everything wired up, lets start by running the kamino finance to jupiter lend refinance test
 
@@ -795,7 +793,7 @@ For recreating the kamino to jupiter loan refinance is a six step setup process,
       We open a jupiter position before the refinance ahead, because the position account is required to be passed when we want to deposit and borrow collateral, which has to be done ahead.
       ![Open jupiter lend position](docs/k2jstep5.png)
    6. **Refinance: Kamino → Jupiter**
-      The last and final step requires us to flash borrow to repay the users debt then we CPI into our program to run the whole flow of withdrawing the collateral from kamino and depositing it in jupiter lend (the jupiter lend position)
+      The last and final step requires us to flash borrow to repay the users debt then we CPI into our program to run the whole flow of withdrawing the collateral from kamino and depositing it in jupiter lend (the jupiter lend position) then borrowing USDC debt on the jupiter lend position to repay the flashloan debt, all done atomically.
       ![Refinance (Kamino to Jupiter)](docs/k2jstep6.png)
 
 Heres the full success run printed in the terminal
@@ -888,20 +886,78 @@ Heres the full success run printed in the terminal
   2 passing (42s)
 ```
 
-Refinancing in the other direction is somewhat similar so we are not going to go through each step explicititly
+The log explicitly shows everything from the accounts used to the programs executed in the instruction and CPI stack height tree as we can see the kamino program is invoked by our program marked (unknown program) at the CPI of height 2, so the restriction is effectively bypassed and the refinance flow succeeds.
+
+### Running the Jupiter to Kamino Lend Refinance
+
+Refinancing in the other direction is mostly the same so we are not going to go through each step explicitly, the major difference is that we open a jupiter lend mock position for the refinancing with a JLP collateral and USDC borrow. Heres the final transaction.
 
 ![Jupiter to Kamino Refinance](docs/j2kstep5.png)
 
+### Non determinism in runs: drift, and what it is
+
+Two clocks drift on a mainnet fork, and both surface as opaque math errors.
+
+An oracle cloned once is frozen at clone time while the network clock advances, so its price ages out and the protocols reject it, that's why `prepare()` **streams** the scope feeds (`surfnet_streamAccount`) instead of trusting the lazy clone. The subtler one is the surfnet's own clock: it ticks forward on its own (~one slot per 400 ms) and over a long session runs *ahead* of the forked accounts, at which point the time-based interest math overflows — Kamino returns `MathOverflow` (`last_update.rs`), Jupiter returns `LIBRARY_MATH_ERROR`, which the SDK reports as the unhelpful `No return data found in logs`. It appears two ways:
+
+- **Too fresh** — right after startup the surfnet slot can be briefly *behind* a just-cloned reserve's `last_update`, so `slots_elapsed` underflows. This clears within a few slots, so the flow scripts **retry** it automatically.
+- **Drifted** — after a long session the clock is too far *ahead*. `surfnet_timeTravel` only moves forward and `surfnet_resetNetwork` wipes the deployed program, so the fix is to **restart** the surfnet (it re-runs the deploy runbook) for a fresh clock.
+
+One last operational note: run surfpool against a dedicated RPC — `surfpool start --rpc-url <provider>` — or the free public endpoint will rate-limit the lazy clone and you'll see `Failed to fetch accounts from remote` on transactions that touch many not-yet-cached accounts.
+
+## Solution - LITESVM?
+<!-- 
+### LiteSVM: deterministic fixtures
+
+The full refinance won't reasonably run in LiteSVM — with no lazy cloning you'd have to load six programs plus their programdata and ~60 data accounts and keep every one consistent. So LiteSVM covers the self-contained checks, where its determinism earns its keep. There are two ways to get the fixtures:
+
+- **`scripts/dump-fixtures.ts`** — snapshot mainnet directly: each account as base64 with owner/lamports, each program via `solana program dump`, and the source slot recorded in a manifest.
+- **`surfnet_exportSnapshot`** — have surfpool export the *pre-execution* account state of a specific transaction as JSON, which is exactly the deterministic fixture set for that transaction (reloadable with `surfpool start --snapshot`).
+
+Either way, the test loads them and — the critical step — pins the SVM clock to the fixture slot. Kamino computes interest from `slots_elapsed` and validates its scope price against a timestamp, so a clock that doesn't match the fixtures underflows and reverts. Note `Clock` needs all five fields as `bigint`; a bare `new Clock()` throws:
+
+```ts
+const svm = new LiteSVM().withSplPrograms().withSysvars();
+svm.addProgramFromFile(K_LEND_PROGRAM_ID, "fixtures/klend.so");
+svm.setAccount(reserve, { data, owner, lamports, executable, rentEpoch: 0 });
+// Clock(slot, epochStartTimestamp, epoch, leaderScheduleEpoch, unixTimestamp)
+svm.setClock(new Clock(slot, ts, epoch, epoch, ts));
+
+const res = svm.sendTransaction(tx);        // e.g. a Kamino RefreshReserve
+printLiteSVMResult({ logs: res.logs(), computeUnits: res.computeUnitsConsumed() });
+```
+
+It prints through the same formatter as the surfpool tests, only sourced from LiteSVM's own logs — byte-identical on every run.
+
+> *Screenshot: the LiteSVM printout for the Kamino RefreshReserve executed against dumped fixtures.*
+> ![LiteSVM printout](docs/screenshots/litesvm-refreshreserve.png) -->
+
+### Running the whole thing
+
+```bash
+surfpool start &                     # fork + auto-deploy
+npm run test:kamino-to-jup           # surfpool: Kamino → Jupiter
+npm run test:jup-to-kamino           # surfpool: Jupiter → Kamino
+npm run flashloan-demo               # bypass vs control
+npm run flow:tx                      # flashloan refinance + JSON dump
+
+npm run dump-fixtures                # snapshot mainnet for LiteSVM
+npm run test:litesvm                 # deterministic LiteSVM check
+
+npm run fetch-markets                # refinanceable pairs + utilisation (no validator)
+npm run print-tx <signature>         # solscan-style dump of any transaction
+```
+
 ## Conclusion
 
-They were discussions largely involving the actions Kamino finance took, some said its against the ethos of defi, others said its fair game in competition to prevent vampire attack of their user base 
+They were discussions largely involving the actions Kamino finance took, some said its against the ethos of defi, others said its fair game in competition to prevent vampire attack of their user base others desisted from
 
 
 ## References
-- https://github.com/L0STE/anchor-looping-program
-- https://github.com/anza-xyz/agave/blob/master/program-runtime/src/execution_budget.rs
-- https://blog.asymmetric.re/solana-vulnerabilities-that-arent-unpacking-common-misreports/
-- https://github.com/Kamino-Finance/klend/blob/c06001927d68895be487482bdd82dcf6e88e6348/programs/klend/src/lending_market/ix_utils.rs#L161
-- https://github.com/blueshift-gg/beethoven/ 
-- https://github.com/Instadapp/fluid-solana-programs/blob/626b177f235224bc5d074d39439cd2558f542886/programs/liquidity/src/module/user.rs#L37 
 
+- <https://github.com/L0STE/anchor-looping-program>
+- <https://github.com/anza-xyz/agave/blob/master/program-runtime/src/execution_budget.rs>
+- <https://blog.asymmetric.re/solana-vulnerabilities-that-arent-unpacking-common-misreports/>
+- <https://github.com/Kamino-Finance/klend/blob/c06001927d68895be487482bdd82dcf6e88e6348/programs/klend/src/lending_market/ix_utils.rs#L161>
+- <https://github.com/blueshift-gg/beethoven/>
+- <https://github.com/Instadapp/fluid-solana-programs/blob/626b177f235224bc5d074d39439cd2558f542886/programs/liquidity/src/module/user.rs#L37>

@@ -97,7 +97,16 @@ export async function sendV0Tx(opts: {
   tx.sign([payerKeypair, ...extraSigners]);
 
   const sig = await connection.sendTransaction(tx, { maxRetries: 3 });
-  await connection.confirmTransaction(sig, "confirmed");
+  try {
+    await connection.confirmTransaction(sig, "confirmed");
+  } catch (error) {
+    // A failed confirmation still refers to an on-chain transaction. Preserve its
+    // signature so callers can inspect the logs and link to the local explorer.
+    if (error && typeof error === "object") {
+      Object.assign(error, { signature: sig });
+    }
+    throw error;
+  }
   return sig;
 }
 
