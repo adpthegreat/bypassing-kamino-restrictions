@@ -771,11 +771,11 @@ npm run fetch-markets                # refinanceable pairs + utilisation (no val
 npm run print-tx <signature>         # solscan-style dump of any transaction
 ```
 
-## Running the Kamino to Jupiter Lend Refinance 
+## Running the Kamino to Jupiter Lend Refinance
 
 Now that we have everything wired up, lets start by running the kamino finance to jupiter lend refinance test
 
-We run `surfpool start` in one terminal, then `npm run test:kamino-to-jup` in another
+We run `surfpool start` in one terminal, then `npm run test:kamino-to-jup` in another.
 
 For recreating the kamino to jupiter loan refinance is a six step setup process, we first set up the mock kamino positions that act as the users position on kamino finance, then we set up the jupiter position that the loan will be refinanced to, then the full refinance leg gets executed in between the flashloan borrow to pay the users kamino debt, and the flashloan repay to complete the flashloan flow, lets through them.
 
@@ -796,7 +796,7 @@ For recreating the kamino to jupiter loan refinance is a six step setup process,
       ![Open jupiter lend position](docs/k2jstep5.png)
    6. **Refinance: Kamino → Jupiter**
       The last and final step requires us to flash borrow to repay the users debt then we CPI into our program to run the whole flow of withdrawing the collateral from kamino and depositing it in jupiter lend (the jupiter lend position)
-      ![Refinance (Kamino to Jupiter)](docs/k2jstep4.png)
+      ![Refinance (Kamino to Jupiter)](docs/k2jstep6.png)
 
 Heres the full success run printed in the terminal
 
