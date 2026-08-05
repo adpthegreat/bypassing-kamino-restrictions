@@ -24,7 +24,7 @@ sysvar scan can't see `jupr81`. Source: `Kamino-Finance/klend@c060019`
 > Subtlety worth knowing: the Jupiter SDK's operate/refinance instruction targets
 > `jup8Qcdt…` (a *router* that CPIs `jupr81`), so using that ix keeps `jupr81`
 > nested and does **not** trip the guard. To reproduce the block you must place
-> `jupr81` **itself** at the top level (see `probe-toplevel-block.ts`).
+> `jupr81` **itself** at the top level (see the **CONTROL** case in `flashloan-bypass-demo.ts`).
 
 ---
 
@@ -34,7 +34,7 @@ sysvar scan can't see `jupr81`. Source: `Kamino-Finance/klend@c060019`
 
 | File | What it does |
 |------|--------------|
-| **`constants.ts`** | All addresses and magic numbers: program id (env-overridable via `PROGRAM_ID`), instruction discriminants (`DISC`), Kamino/Jupiter program ids, the JLP/USDC market — reserves, vaults, collateral mints, fee vaults, scope oracles — plus `U64_MAX`, `MIN_I128`, test amounts, and RPC URLs. |
+| **`constants.ts`** | All addresses and magic numbers: program id (resolved from the deployed keypair), instruction discriminants (`DISC`), Kamino/Jupiter program ids, the JLP/USDC market — reserves, vaults, collateral mints, fee vaults, scope oracles — plus `U64_MAX`, `MIN_I128`, test amounts, and RPC URLs. |
 | **`utils.ts`** | The reusable toolbox: Surfpool `surfnet_*` cheatcodes (`surfnetAirdrop`, `surfnetTokenAirdrop`, `surfnetStreamAccount`), a v0 transaction sender with compute budget + ALT support (`sendV0Tx`), Kamino PDA derivations (`obligationAccount`, `userMetadataAccount`, `obligationFarmStatePda`), the reserve→farm byte parser (`getReserveFarms`), ATA helper (`getAtaAddress`), the address-lookup-table builder (`createLookupTable`), and little-endian byte packers (`u8/u16/u32/u64/meta`). |
 | **`jup_lend_loader.js`** | ESM→CJS bridge for `@jup-ag/lend` (the SDK ships ESM only; the tests compile to CommonJS). Exposes `getJupLendBorrow()`, `getJupLendFlashloan()`, `getJupLendRefinance()` via cached dynamic `import()`. |
 
@@ -44,7 +44,7 @@ sysvar scan can't see `jupr81`. Source: `Kamino-Finance/klend@c060019`
 |------|--------------|
 | **`program-instructions.ts`** | `TransactionInstruction` builders for the program's **non-refinance** entrypoints (discriminants 0–7): `initKaminoIx`, `depositKaminoIx`, `borrowKaminoIx`, `depositAndBorrowJuplendIx`, `initJupiterIx`. Account orders mirror the Rust account structs in `program/src/protocols/{kamino,juplend}/actions.rs` exactly. |
 | **`refinance-helpers.ts`** | The refinance instruction itself (discriminants 10/11). `buildJupiterOperateAccounts()` maps the Jupiter SDK's `accounts` object into the program's 36-slot fixed order (substituting the program-id placeholder for null claim accounts), `buildKaminoBlock()` builds the unified Kamino account block in `refinance.rs` order (starting with the KLend program id — the boundary marker the program scans for), and `buildRefinanceIx()` concatenates `[Jupiter operate][Jupiter remaining][Kamino block]` and encodes the data. |
-| **`bootstrap.ts`** | The orchestration layer shared by tests and probes. `createCtx()` (payer + derived PDAs/ATAs), `prepare()` (stream oracles + Jupiter accounts, fund payer, resolve farms), position openers (`openKaminoLoan`, `initKaminoObligation`, `openJupiterPosition`, `openJupiterLoan`, `nextJupiterPositionId`), and both refinance directions (`refinanceKaminoToJupiter`, `refinanceJupiterToKamino`). `refinanceKaminoToJupiter` also takes `{ topLevelJupiter }` to build the **control** (a bare top-level `jupr81` ix) used by the bypass demo. |
+| **`bootstrap.ts`** | The orchestration layer shared by the surfpool tests and the bypass demo. `createCtx()` (payer + derived PDAs/ATAs), `prepare()` (stream oracles + Jupiter accounts, fund payer, resolve farms), position openers (`openKaminoLoan`, `initKaminoObligation`, `openJupiterPosition`, `openJupiterLoan`, `nextJupiterPositionId`), and both refinance directions (`refinanceKaminoToJupiter`, `refinanceJupiterToKamino`). `refinanceKaminoToJupiter` also takes `{ topLevelJupiter }` to build the **control** (a bare top-level `jupr81` ix) used by the bypass demo. |
 
 ### The Solscan printer
 
@@ -88,16 +88,15 @@ the same execution every run.
 
 ---
 
-## `scripts/` — probes & CLIs
+## `scripts/` — CLIs
 
 | File | What it does |
 |------|--------------|
 | **`print-tx.ts`** | `npm run print-tx <signature> [rpcUrl]` — fetch any transaction from any cluster and dump it Solscan-style. Defaults to mainnet. |
-| **`dump-fixtures.ts`** | `npm run dump-fixtures` — writes `tests/fixtures/` (accounts as base64 JSON + `klend.so` + manifest). |
-| **`probe-kamino-open.ts`** | Fast iteration probe: opens a Kamino JLP/USDC loan step by step and prints the result. Validates the INIT/DEPOSIT/BORROW account wiring against live mainnet-forked Kamino. |
-| **`probe-refinance-k2j.ts`** | Full Kamino→Jupiter refinance probe (the non-mocha version of the k2j test, with verbose step logging). |
-| **`probe-refinance-j2k.ts`** | Full Jupiter→Kamino refinance probe. |
-| **`probe-toplevel-block.ts`** | **The root-cause experiment.** Builds the naive one-call refinance shape — a **top-level** KLend repay next to a **bare top-level `jupr81`** — and simulates it. Confirms the restriction fires (`TransactionIncludesRestrictedPrograms`), proving the guard is enforced locally and that the bypass depends entirely on keeping `jupr81` out of the top level. |
+| **`dump-fixtures.ts`** | `npm run dump-fixtures` — dumps the protocol `.so` programs into `tests/fixtures/` (the LiteSVM harness loads these; it lazy-clones the accounts it needs at test time). |
+| **`flashloan-refinance-tx.ts`** | `npm run flow:tx` — runs a Kamino→Jupiter refinance on surfpool and dumps the confirmed tx to `refinance-flow.json` (input for the diagram tooling). |
+| **`json-to-mermaid.ts`** | `npm run flow:mermaid` — turns `refinance-flow.json` into the refinance-flow mermaid diagram. |
+| **`operate-table-svg.ts`** | `npm run operate-table` — regenerates the Jupiter operate-deltas SVG/PNG in `docs/`. |
 
 ---
 
@@ -111,7 +110,12 @@ npm run build:program       # builds target/deploy/kamino_juplend_refinance.so
 ```
 
 Surfpool **≥ 1.4** is required for the `surfnet_*` cheatcodes (the 0.1.x homebrew
-build lacks them). A v1.5.0 binary is vendored at `./bin/surfpool`.
+build lacks them). Install it and make sure `surfpool` is on your PATH:
+
+```bash
+cargo install surfpool-cli   # or: brew install txtx/taps/surfpool
+surfpool --version           # expect ≥ 1.4
+```
 
 ### Surfpool refinance tests (both directions pass)
 
@@ -120,15 +124,17 @@ tests resolve the deployed program id + default to the local RPC on their own �
 **no keygen, no manual deploy, no env vars.**
 
 ```bash
-./bin/surfpool start &          # mainnet fork + cheatcodes + auto-deploy + Studio :18488
+# Fork from a dedicated RPC — the public endpoint rate-limits the lazy clone and
+# you'll see "Failed to fetch accounts from remote" on account-heavy txs.
+surfpool start --no-tui --rpc-url "$MAINNET_RPC_URL" &   # mainnet fork + cheatcodes + auto-deploy + Studio :18488
 npm run test:kamino-to-jup
 npm run test:jup-to-kamino
 ```
 
-- Add `--rpc-url <your-RPC>` to avoid the public endpoint rate-limiting the fork.
-- `constants.ts` reads the deployed id from `target/deploy/kamino_juplend_refinance-keypair.json`; override with `PROGRAM_ID=<addr>` only if you deploy elsewhere.
+- `surfpool` also reads the datasource from `SURFPOOL_DATASOURCE_RPC_URL` if you prefer an env var over `--rpc-url`.
+- `constants.ts` reads the deployed id from `target/deploy/kamino_juplend_refinance-keypair.json` automatically, so tests always match the deployment.
 - State drifts across many runs (lazy fork); each test uses a fresh
-  payer/obligation/position, so a clean session is deterministic — just restart
+  payer/obligation/position, so a clean session is deterministic - just restart
   surfpool (it re-deploys) if a run fails after many prior runs.
 - View any signature at **http://127.0.0.1:18488** (Studio explorer).
 
@@ -145,5 +151,4 @@ npm run test:litesvm
 npm run fetch-markets                       # refinanceable pairs + utilization
 npm run print-tx <signature> [rpcUrl]       # solscan-style dump of any tx
 npm run flashloan-demo                       # bypass vs control (needs surfpool)
-npx tsx scripts/probe-toplevel-block.ts      # prove the restriction fires
 ```

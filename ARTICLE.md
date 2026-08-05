@@ -378,15 +378,15 @@ Here is a table showing all the actions together.
 
 ## Kamino
 
-The kamino implementation was more tedious because their collateral and borrows need to be refreshed before every borrow or repay transaction
+The kamino implementation goes differently, as its a lending protocol with a very different design from jupiter lend.
 
-Before any instruction invocation involving reserves in kamino finance, we need to refresh the relevant reserves for either the debt (obligation) and the collateral, we use a system of bitmasking adapted from this [repo](https://github.com/L0STE/anchor-looping-program/blob/main/programs/anchor-looping/src/lib.rs#L22)
+Before any instruction invocation involving reserves in kamino finance, we need to refresh the relevant reserves for either the debt (obligation) and the collateral, we use a simple bitmasking system adapted from this [repo](https://github.com/L0STE/anchor-looping-program/blob/main/programs/anchor-looping/src/lib.rs#L22)
 
-So before each withdraw, deposit, borrow or repay kamino instruction invocatiion we add either refresh the collateral, and or the borrow, in order for the reserves to not be stale
+So before each withdraw, deposit, borrow or repay kamino instruction invocatiion we either refresh the collateral, and or the borrow, in order for the reserves to not be stale
 
 ## The reserve-refresh bitmask
 
-Kamino won't let you touch an obligation until every reserve it holds has been refreshed *in the same slot*, and its `RefreshObligation` instruction is picky: you must hand it **exactly** the reserves the obligation currently holds — no more, no fewer — as remaining accounts. Pass a borrow reserve to an obligation that has no debt and it rejects the whole thing with a reserve-count mismatch.
+Kamino won't let you touch an obligation until every reserve it holds has been refreshed *in the same slot*, and its `RefreshObligation` instruction is picky: you must hand it **exactly** the reserves the obligation currently holds - no more, no fewer - as remaining accounts. Pass a borrow reserve to an obligation that has no debt and it rejects the whole thing with a reserve-count mismatch.
 
 That's a problem when you're chaining actions inside one transaction, because the obligation's composition *changes as you go* — repay all the debt and the borrow side vanishes; deposit collateral and the collateral side appears. So the program carries a tiny **bitmask** describing what the obligation holds, and rewrites it between sub-actions with plain bitwise ops.
 
@@ -469,7 +469,7 @@ fn borrow_signed(ctx, amount, flags, signer_seeds) -> ProgramResult {
 
 ### Rewriting the mask between chained actions
 
-This is where the bitmask earns its keep. In a refinance the actions run back-to-back on the *same* obligation, and each one mutates the obligation, so the flag we feed the *next* action has to reflect that mutation. The program does it with a single bitwise op each time.
+In a refinance the actions run back-to-back on the *same* obligation, and each one mutates the obligation, so the flag we feed the *next* action has to reflect that mutation. The program does it with a single bitwise op each time.
 
 **Kamino → Jupiter** repays, then withdraws. Repaying gets the caller's full flag (the obligation has both sides). But if we repaid **all** the debt (`u64::MAX`), the borrow side is now gone — so before the withdraw we **clear** the borrow bit with `& !FLAG_HAS_BORROWS`, leaving only collateral:
 
@@ -491,7 +491,7 @@ fn process_kamino_to_jupiter(&self) -> ProgramResult {
 }
 ```
 
-Had we left `FLAG_HAS_BORROWS` set, the withdraw's `refresh_obligation` would try to hand `RefreshObligation` a borrow reserve the obligation no longer has → count mismatch, revert.
+Had we left `FLAG_HAS_BORROWS` set, the withdraw's `refresh_obligation` would try to hand `RefreshObligation` a borrow reserve the obligation no longer has then it causes a count mismatch then revert.
 
 **Jupiter → Kamino** is the inverse. The destination Kamino obligation starts empty, so `deposit` runs with the caller's mask (typically `0` — nothing held yet). After the deposit the obligation *has* collateral, so before the borrow we **set** the collateral bit with `| FLAG_HAS_COLLATERAL`:
 
@@ -530,7 +530,7 @@ Its `TryFrom<&[u8]>` just reads the fixed offsets out of the payload.
 
 ### `KaminoAccounts`
 
-This is the important one. A single Kamino position touches different accounts depending on the action — a deposit needs the collateral reserve as its main reserve, a borrow needs the debt reserve, and so on. Instead of asking the caller to send four separate account lists, `KaminoAccounts` holds the full set once — the collateral leg, the debt leg, and the reserves used for refreshes — and exposes four methods that reshape it into the exact struct each action wants:
+This is the important one. A single Kamino position touches different accounts depending on the action - a deposit needs the collateral reserve as its main reserve, a borrow needs the debt reserve, and so on. Instead of asking the caller to send four separate account lists, `KaminoAccounts` holds the full set once — the collateral leg, the debt leg, and the reserves used for refreshes — and exposes four methods that reshape it into the exact struct each action wants:
 
 ```rust
 fn deposit_accounts(&self)  -> KaminoDepositAccounts  { /* collateral_reserve -> reserve, ... */ }
@@ -571,7 +571,8 @@ Kamino::withdraw(&withdraw_accounts, self.data.source_withdraw_amount, &withdraw
 JupiterLend::deposit_and_borrow(&self.accounts.juplend_accounts, self.data.destination_deposit_amount, self.data.destination_borrow_amount, &self.data.jupiter_indices)
 ```
 
-`process_jupiter_to_kamino` is the mirror — repay and withdraw on Jupiter, then deposit and borrow on Kamino — and it sets the collateral bit before the borrow, since the deposit that just ran is what gives the obligation collateral.
+`process_jupiter_to_kamino` is the oth
+er way - we repay and withdraw on Jupiter, then deposit and borrow on Kamino and it sets the collateral bit before the borrow, since the deposit that just ran is what gives the obligation collateral.
 
 Finally, two free functions wrap it for the entrypoint:
 
@@ -615,7 +616,7 @@ The suite is split into small modules where each module handles a particular fun
 | `fetch-refinanceable-markets.ts` | A standalone script that queries the Jupiter Lend and Kamino APIs to find pairs refinanceable on both venues. |
 | `README.md` | How to run everything. |
 
-Development scripts live alongside in `scripts/`: `dump-fixtures.ts` (snapshot mainnet for LiteSVM), `print-tx.ts` (dump any signature), `flashloan-refinance-tx.ts` (produce a flashloan refinance + its JSON), and a family of `probe-*.ts` files used to bring each step up one at a time.
+Development scripts live alongside in `scripts/`: `dump-fixtures.ts` (dump the protocol programs for LiteSVM), `print-tx.ts` (dump any signature), and `flashloan-refinance-tx.ts` (produce a flashloan refinance + its JSON for the diagram tooling).
 
 ### How surfpool boots and deploys itself
 
@@ -647,7 +648,7 @@ surfnetTokenAirdrop(conn, payer, JLP_MINT, amount);      // → surfnet_setToken
 surfnetStreamAccount(conn, SCOPE_ORACLE_ACCOUNT);        // → surfnet_streamAccount
 ```
 
-The rest of the toolbox contains helpers such as:
+The rest of the utils contains helpers such as:
 
 - **`sendV0Tx({ ixs, lookupTables, cuLimit, cuPrice })`** — prepends `ComputeBudget` limit + price instructions, compiles a **v0** message (so it can carry address lookup tables), signs with the payer, sends with retries, and confirms. Every test transaction goes through it. The refinance runs at `cuLimit: 1_400_000`; the setup instructions default to `400_000`.
 - **`obligationAccount` / `userMetadataAccount` / `obligationFarmStatePda`** — Kamino PDAs, hand-derived from klend's seeds so the suite avoids pulling in the heavy `@kamino-finance/klend-sdk`.
@@ -663,7 +664,7 @@ Future implementations eg building a frontend for a refinance tool will be built
 
 ### Testing and proving the existence of the the restriction(`flashloan-bypass-demo.ts`)
 
-To show the restriction isn't hypothetical, this script runs the same economic operation twice and prints both. The **bypass** is the normal refinance (Jupiter nested in the CPI) and it confirms. The **control** injects a single bare `jupr81` instruction at the *top level* of the transaction; Kamino's repay scan now finds the restricted program and the transaction reverts with `TransactionIncludesRestrictedPrograms` (error `6134` / `0x17f6`). Same accounts, same amounts — the only difference is where in the call stack `jupr81` sits.
+To show the restriction, this script runs the same operation twice and prints both. The **bypass** is the normal refinance (Jupiter nested in the CPI) and it confirms. The **control** injects a single bare `jupr81` instruction at the *top level* of the transaction; Kamino's repay scan now finds the restricted program and the transaction reverts with `TransactionIncludesRestrictedPrograms` (error `6134` / `0x17f6`). Same accounts, same amounts — the only difference is where in the call stack `jupr81` sits.
 
 ```
 CONTROL — top-level Jupiter flashloan added (height 1)
@@ -748,7 +749,6 @@ SUMMARY
   that ix and wrongly appeared "not blocked". The restriction is hardcoded in the
   klend program (a const), NOT config state, and surfpool/LiteSVM enforces it.
 ```
-
 
 ## End to end: Testing the full refinance flow 
 
@@ -950,7 +950,7 @@ npm run print-tx <signature>         # solscan-style dump of any transaction
 
 ## Conclusion
 
-They were discussions largely involving the actions Kamino finance took, some said its against the ethos of defi, others said its fair game in competition to prevent vampire attack of their user base others desisted from
+They were discussions largely involving the actions Kamino finance took, some said its against the ethos of permissionless defi, others said its fair game in competition to prevent vampire attack of their user base others 
 
 
 ## References
@@ -961,3 +961,32 @@ They were discussions largely involving the actions Kamino finance took, some sa
 - <https://github.com/Kamino-Finance/klend/blob/c06001927d68895be487482bdd82dcf6e88e6348/programs/klend/src/lending_market/ix_utils.rs#L161>
 - <https://github.com/blueshift-gg/beethoven/>
 - <https://github.com/Instadapp/fluid-solana-programs/blob/626b177f235224bc5d074d39439cd2558f542886/programs/liquidity/src/module/user.rs#L37>
+- <https://x.com/FabianoSolana/status/1995808380531724542?s=20>
+- <https://x.com/andylinee/status/1995780714776998317?s=20>
+- <https://x.com/JupiterExchange/status/1994864718063047164?s=20> 
+- <https://x.com/kashdhanda/status/1995816421516083433?s=20>
+- <https://x.com/jupiter_earn/status/1994298265156898929?s=20> 
+- <https://x.com/JaxOfWeb3/status/1994315243661524996?s=20> 
+- <https://x.com/JupiterExchange/status/1994081765036544477?s=20> 
+- <https://x.com/jup_burst/status/1994267490055077907?s=20> 
+
+
+
+
+Do an overlapping collage with the tweets so that we can use it for an article header 
+
+<https://x.com/FabianoSolana/status/1995808380531724542?s=20> - tweet about the matter
+
+<https://x.com/andylinee/status/1995780714776998317?s=20> (find chinese friend and make chinese community version)
+
+<https://x.com/JupiterExchange/status/1994864718063047164?s=20> - refinance tx show
+
+<https://x.com/kashdhanda/status/1995816421516083433?s=20>
+
+<https://x.com/JupiterExchange/status/1994081765036544477?s=20> - refinance ad promo
+
+<https://x.com/jup_burst/status/1994267490055077907?s=20> - refinance infographics
+
+<https://x.com/jupiter_earn/status/1994298265156898929?s=20> - frontend example
+
+<https://x.com/JaxOfWeb3/status/1994315243661524996?s=20> - frontend example

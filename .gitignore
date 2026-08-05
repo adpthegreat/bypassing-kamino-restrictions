@@ -3,9 +3,9 @@ program/target/
 dist/
 .surfpool/
 
-# test artifacts + vendored surfpool binary
+# test artifacts
 .test-keys/
-bin/surfpool
+logs/
 package-lock.json
 yarn-error.log
 

@@ -24,7 +24,7 @@ A Pinocchio Solana program that refinances loans between **Kamino Lend** and
 ## One-time setup
 
 ```bash
-# JS deps (web3.js, @jup-ag/lend, @kamino-finance/klend-sdk, litesvm, mocha, tsx, …)
+
 npm install
 
 # build the on-chain program -> target/deploy/kamino_juplend_refinance.so
@@ -70,11 +70,11 @@ Notes:
   fork: `surfpool start --rpc-url https://your-rpc-provider.com`.
 - `surfpool start --watch` re-deploys automatically when the `.so` changes.
 - Surfpool lazily forks live mainnet, so state drifts across many runs. Each test
-  uses a fresh payer/obligation/position, so a **clean session is deterministic** —
+  uses a fresh payer/obligation/position, so a **clean session is deterministic** -
   just restart surfpool if a run fails after many prior runs.
 - Deployment is at the cargo-generated keypair
-  `target/deploy/kamino_juplend_refinance-keypair.json`; set `PROGRAM_ID=<addr>`
-  only if you deploy somewhere else.
+  `target/deploy/kamino_juplend_refinance-keypair.json`, and `constants.ts`
+  resolves the program id from it automatically.
 
 ---
 
@@ -176,8 +176,8 @@ program/           Pinocchio program (Kamino <-> Jupiter Lend refinance)
   src/instructions/        Shank IDL definitions
 idl/               generated IDL
 tests/             TS helpers + mocha suites + tools   (see tests/README.md)
-tests/fixtures/    dumped mainnet state for LiteSVM
-scripts/           probes + CLIs (print-tx, dump-fixtures, refinance/​block probes)
+tests/fixtures/    dumped protocol programs (.so) for LiteSVM
+scripts/           CLIs (print-tx, dump-fixtures, flow:tx + diagram tooling)
 runbooks/          txtx deployment runbook (surfpool auto-deploys from here)
 ```
 
@@ -186,9 +186,7 @@ Full breakdown of every test/script file: [tests/README.md](tests/README.md).
 ---
 
 ## Troubleshooting
-
-- **`surfnet_setAccount` → "Method not found"** — your surfpool is < 1.4; upgrade it.
 - **`Failed to fetch accounts from remote` / tx timeouts** — the forked RPC is rate-limited. Start surfpool with `--rpc-url <dedicated RPC>`.
 - **`npm install` fails on `litesvm-darwin-*`** — a yarn v1 bug; use `npm install`, not `yarn`.
-- **A refinance test fails after several green runs** — session drift; restart surfpool (it re-deploys automatically).
+- **A refinance test fails after several green runs** - session drift; restart surfpool (it re-deploys automatically).
 ```
