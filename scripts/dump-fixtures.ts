@@ -1,68 +1,87 @@
 /**
- * Dump mainnet fixtures for the LiteSVM test: a set of accounts (base64) plus
- * the on-chain KLend program binary, and the reference slot/clock. Deterministic
- * inputs → LiteSVM reproduces the same execution every run (unlike a live fork).
+ * Snapshot the protocol-owned closure for the LiteSVM refinance test.
  *
- *   yarn dump-fixtures            # dumps from mainnet
- *   RPC=http://127.0.0.1:8899 yarn dump-fixtures   # or from the running surfpool
+ * This talks directly to mainnet: no Surfpool account fetching is involved.
+ * User-owned state (payer, ATAs, obligation/farm PDAs, Jupiter position) is
+ * deliberately omitted because litesvm-refinance.ts creates it locally.
  */
 import { Connection, PublicKey } from "@solana/web3.js";
 import { execFileSync } from "child_process";
-import { writeFileSync, mkdirSync } from "fs";
+import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
-import { MAINNET_RPC_URL, K_LEND_PROGRAM_ID } from "../tests/constants";
-import { getRefinancePair } from "../tests/market";
+import {
+  JUP_LEND_BORROW_PROGRAM_ID,
+  K_FARMS_PROGRAM_ID,
+  K_LEND_PROGRAM_ID,
+  MAINNET_RPC_URL,
+  METADATA_PROGRAM_ID,
+} from "../tests/constants";
 
-const RPC = process.env.RPC || MAINNET_RPC_URL;
+const RPC = process.env.MAINNET_RPC_URL || MAINNET_RPC_URL;
 const OUT = join(__dirname, "..", "tests", "fixtures");
-const COLLATERAL = process.env.COLLATERAL || "JLP";
-const DEBT = process.env.DEBT || "USDC";
+const FLOW = join(__dirname, "..", "refinance-flow.json");
+const PROGRAMS = [
+  K_LEND_PROGRAM_ID,
+  K_FARMS_PROGRAM_ID,
+  JUP_LEND_BORROW_PROGRAM_ID,
+  METADATA_PROGRAM_ID,
+  new PublicKey("jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC"),
+  new PublicKey("jupnw4B6Eqs7ft6rxpzYLJZYSnrpRgPcr589n5Kv4oc"),
+];
+const BUILT_INS = new Set([
+  "11111111111111111111111111111111",
+  "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+  "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
+  "Sysvar1nstructions1111111111111111111111111",
+  "SysvarRent111111111111111111111111111111111",
+]);
+
+function recordedProtocolAccounts(): PublicKey[] {
+  const flow = JSON.parse(readFileSync(FLOW, "utf8"));
+  const message = flow.transaction.transaction.message;
+  const keys = [
+    ...(message.staticAccountKeys || []),
+    ...(flow.transaction.meta.loadedAddresses?.writable || []),
+    ...(flow.transaction.meta.loadedAddresses?.readonly || []),
+  ];
+  const programs = new Set(PROGRAMS.map((p) => p.toBase58()));
+  return [...new Set(keys)]
+    .filter((key) => !BUILT_INS.has(key) && !programs.has(key))
+    .map((key) => new PublicKey(key));
+}
 
 async function main() {
   mkdirSync(OUT, { recursive: true });
   const connection = new Connection(RPC, "confirmed");
-
-  // Resolve the pair JIT so the fixtures aren't hardcoded to one asset.
-  const pair = await getRefinancePair({ collateralSymbol: COLLATERAL, debtSymbol: DEBT });
-  const ACCOUNTS: Record<string, PublicKey> = {
-    collateral_reserve: pair.collateral.reserve,
-    lending_market: pair.market,
-    scope_oracle: pair.collateral.scopeOracle,
-  };
-
   const slot = await connection.getSlot("confirmed");
-  const blockTime = await connection.getBlockTime(slot).catch(() => null);
-  const manifest: any = { rpc: RPC, slot, blockTime, accounts: {} };
+  const blockTime = await connection.getBlockTime(slot);
+  const accounts = recordedProtocolAccounts();
+  const infos = await connection.getMultipleAccountsInfo(accounts, "confirmed");
+  const dumped: Record<string, string> = {};
 
-  for (const [name, pk] of Object.entries(ACCOUNTS)) {
-    const info = await connection.getAccountInfo(pk, "confirmed");
-    if (!info) throw new Error(`account ${name} (${pk.toBase58()}) not found`);
-    const rec = {
-      pubkey: pk.toBase58(),
-      lamports: info.lamports,
-      owner: info.owner.toBase58(),
-      executable: info.executable,
-      data: info.data.toString("base64"),
-    };
-    writeFileSync(join(OUT, `${name}.json`), JSON.stringify(rec, null, 2));
-    manifest.accounts[name] = rec.pubkey;
-    console.log(`  dumped ${name}: ${pk.toBase58()} (${info.data.length}B)`);
+  for (let i = 0; i < accounts.length; i++) {
+    const info = infos[i];
+    if (!info) continue; // recorded payer/position accounts are intentionally local
+    const key = accounts[i].toBase58();
+    const filename = `account-${key}.json`;
+    writeFileSync(join(OUT, filename), JSON.stringify({
+      pubkey: key, lamports: info.lamports, owner: info.owner.toBase58(),
+      executable: info.executable, data: info.data.toString("base64"),
+    }));
+    dumped[key] = filename;
   }
 
-  // Dump the KLend program binary via the solana CLI.
-  const klendSo = join(OUT, "klend.so");
-  execFileSync(
-    "solana",
-    ["program", "dump", K_LEND_PROGRAM_ID.toBase58(), klendSo, "--url", RPC],
-    { stdio: "inherit" }
-  );
-  console.log(`  dumped KLend program -> ${klendSo}`);
+  for (const program of PROGRAMS) {
+    const filename = `program-${program.toBase58()}.so`;
+    execFileSync("solana", ["program", "dump", program.toBase58(), join(OUT, filename), "--url", RPC], { stdio: "inherit" });
+  }
 
-  writeFileSync(join(OUT, "manifest.json"), JSON.stringify(manifest, null, 2));
-  console.log(`\n✓ fixtures written to ${OUT} (slot ${slot})`);
+  writeFileSync(join(OUT, "manifest.json"), JSON.stringify({
+    rpc: RPC, slot, blockTime, accounts: dumped,
+    programs: PROGRAMS.map((program) => program.toBase58()),
+    localState: ["payer", "token accounts", "Kamino obligation/farm PDAs", "Jupiter position/mint/metadata"],
+  }, null, 2));
+  console.log(`\n✓ dumped ${Object.keys(dumped).length} protocol accounts and ${PROGRAMS.length} programs to ${OUT}`);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main().catch((error) => { console.error(error); process.exit(1); });

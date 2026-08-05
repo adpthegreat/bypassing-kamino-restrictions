@@ -1,10 +1,3 @@
-/**
- * Surfpool test bootstrap: context factory + Kamino/Jupiter position openers.
- *
- * Pair-agnostic: everything asset-specific comes from a resolved PairContext
- * (tests/market.ts). Requires a running Surfpool (mainnet fork + surfnet_*
- * cheatcodes) and the program deployed (surfpool auto-deploys it).
- */
 import {
   Connection,
   Keypair,

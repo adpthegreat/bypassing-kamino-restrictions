@@ -1,24 +1,3 @@
-/**
- * Flashloan / CPI-bypass demonstration.
- *
- * Kamino's RepayObligationLiquidityV2 reads the Instructions sysvar and rejects
- * the transaction if the Jupiter Lend program (jupr81…) appears among the
- * TOP-LEVEL instructions. The sysvar can only iterate top-level (stack height 1)
- * instructions — it cannot see into CPIs.
- *
- * This script runs the same economic operation two ways against surfpool and
- * prints both transactions so the difference is visible:
- *
- *   BYPASS  — the Jupiter interaction happens inside our program's CPI (height 2).
- *             No top-level jupr81 → Kamino's guard sees only our program → allowed.
- *
- *   CONTROL — a top-level Jupiter Lend flashloan (jupr81 at height 1) is added
- *             around the same refinance. Now the guard sees the restricted
- *             program at the top level → the transaction is rejected.
- *
- * Requires surfpool (mainnet fork + cheatcodes) at $ANCHOR_PROVIDER_URL and the
- * program deployed at $PROGRAM_ID.
- */
 import {
   createCtx,
   prepare,
