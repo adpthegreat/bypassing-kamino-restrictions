@@ -12,9 +12,9 @@
     "flow:mermaid": "tsx scripts/json-to-mermaid.ts",
     "operate-table": "tsx scripts/operate-table-svg.ts && qlmanage -t -s 900 -o docs docs/operate-deltas.svg && mv -f docs/operate-deltas.svg.png docs/operate-deltas.png",
     "dump-fixtures": "tsx scripts/dump-fixtures.ts",
-    "test:litesvm": "mocha --require tsx tests/litesvm-refinance.ts --timeout 120000",
-    "test:kamino-to-jup": "mocha --require tsx tests/refinance-kamino-to-jup.ts --timeout 200000",
-    "test:jup-to-kamino": "mocha --require tsx tests/refinance-jup-to-kamino.ts --timeout 200000"
+    "test:litesvm": "mocha --require dotenv/config --require tsx tests/litesvm-refinance.ts --timeout 200000",
+    "test:kamino-to-jup": "mocha --require dotenv/config --require tsx tests/refinance-kamino-to-jup.ts --timeout 200000",
+    "test:jup-to-kamino": "mocha --require dotenv/config --require tsx tests/refinance-jup-to-kamino.ts --timeout 200000"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.0",
@@ -32,6 +32,7 @@
     "@types/node": "^22.0.0",
     "bn.js": "^5.2.5",
     "chai": "^4.5.0",
+    "dotenv": "^10.0.0",
     "mocha": "^11.7.5",
     "ts-mocha": "^10.0.0",
     "tsx": "^4.21.0",

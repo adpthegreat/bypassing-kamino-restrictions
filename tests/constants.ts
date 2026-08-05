@@ -3,28 +3,18 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 
-// This program (Kamino <> Jupiter Lend refinance, Pinocchio)
 
-// Nothing asset-specific lives here — reserves, vaults, oracles, mints, and the
-// market are all resolved just-in-time per pair in tests/market.ts. This file
-// holds only program ids, the instruction ABI, and global sentinels.
-//
+
 // Surfpool auto-deploys the program at the cargo-generated keypair; resolve the
-// program id from it so tests match the deployment. Precedence:
-//   PROGRAM_ID env  >  deployed keypair  >  lib.rs placeholder
+// program id from it so tests always match the deployment.
 function resolveProgramId(): string {
-  if (process.env.PROGRAM_ID) return process.env.PROGRAM_ID;
-  try {
-    const secret = JSON.parse(
-      readFileSync(
-        join(__dirname, "..", "target", "deploy", "kamino_juplend_refinance-keypair.json"),
-        "utf8"
-      )
-    );
-    return Keypair.fromSecretKey(Uint8Array.from(secret)).publicKey.toBase58();
-  } catch {
-    return "Gr4ofKMU4AFW9hpR1dYxbVBHjvXDw9d6LYpCscTc3xMD"; // FIX
-  }
+  const secret = JSON.parse(
+    readFileSync(
+      join(__dirname, "..", "target", "deploy", "kamino_juplend_refinance-keypair.json"),
+      "utf8"
+    )
+  );
+  return Keypair.fromSecretKey(Uint8Array.from(secret)).publicKey.toBase58();
 }
 export const PROGRAM_ID = new PublicKey(resolveProgramId());
 

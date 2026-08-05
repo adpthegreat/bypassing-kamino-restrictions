@@ -26,7 +26,10 @@ const PROGRAM_LABELS: Record<string, string> = {
   KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD: "Kamino Lend (KLend)",
   FarmsPZpWu9i7Kky8tPN37rs2TpmMrAZrC7S7vJa91Hr: "Kamino Farms",
   jupr81YtYssSyPt8jbnGuiWon5f6x9TcDEFxYe3Bdzi: "Jupiter Lend (Borrow)",
-  Gr4ofKMU4AFW9hpR1dYxbVBHjvXDw9d6LYpCscTc3xMD: "Refinance Program (ours)",
+  jupgfSgfuAXv4B6R2Uxu85Z1qdzgju79s6MfZekN6XS: "Jupiter Lend (Flashloan)",
+  jupeiUmn818Jg1ekPURTpr4mFo29p46vygyykFJ3wZC: "Jupiter Lend (Liquidity)",
+  jupnw4B6Eqs7ft6rxpzYLJZYSnrpRgPcr589n5Kv4oc: "Jupiter Lend (Rewards Rate)",
+  DBQhaG61yYoQqvuKDp6G14BR4dY5qZXF54uQXcdGp1EG: "Refinance Program (ours)",
   metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s: "Token Metadata",
   Sysvar1nstructions1111111111111111111111111: "Instructions Sysvar",
 };
@@ -150,7 +153,7 @@ function hr(char = "─", width = 78): string {
   return gray(char.repeat(width));
 }
 
-export function printTransaction(tx: PrintableTx): void {
+export function printTransaction(tx: PrintableTx): string {
   const L: string[] = [];
   const ok = tx.err === null || tx.err === undefined;
   L.push("");
@@ -253,7 +256,9 @@ export function printTransaction(tx: PrintableTx): void {
 
   L.push(hr("━"));
   L.push("");
-  console.log(L.join("\n"));
+  const out = L.join("\n");
+  console.log(out);
+  return out;
 }
 
 /** Fetch a confirmed transaction by signature and print it. */
@@ -387,8 +392,8 @@ export function printLiteSVMResult(opts: {
   computeUnits?: number;
   instructions?: PrintableIx[];
   accounts?: PrintableAccount[];
-}): void {
-  printTransaction({
+}): string {
+  return printTransaction({
     title: opts.title,
     signature: opts.signature,
     cluster: "LiteSVM (in-process)",
