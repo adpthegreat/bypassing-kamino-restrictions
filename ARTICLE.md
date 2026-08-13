@@ -165,7 +165,7 @@ fn next(&mut self) -> Option<Self::Item> {
 }
 ```
 
-The termination condition is the important detail: load_instruction_at_checked returns ProgramError::InvalidArgument when you ask for an index past the last instruction, and the iterator treats that as "done." So `IxIterator::new_at(0, loader)` yields instruction 0, 1, 2, … until the sysvar says there are no more — i.e. it enumerates exactly the transaction's instruction list, in order.
+The termination condition is the important detail: `load_instruction_at_checked` returns `ProgramError::InvalidArgument` when you ask for an index past the last instruction, and the iterator treats that as "done." So `IxIterator::new_at(0, loader)` yields instruction 0, 1, 2, … until the sysvar says there are no more ixs left - i.e. it enumerates exactly the transaction's instruction list, in order.
 
 Now that we understand `ix_utils` and with the iterator in place, the restricted program check is rather straightforward.
 
@@ -186,7 +186,7 @@ It iterates the whole transaction and returns true the moment it finds an instru
 
 ```rust
 pub const RESTRICTED_PROGRAMS: [Pubkey; 1] =
-    [pubkey!("jupr81YtYssSyPt8jbnGuiWon5f6x9TcDEFxYe3Bdzi")];
+    [pubkey!("jupr81YtYssSyPt8jbnGuiWon5f6x9TcDEFxYe3Bdzi")]; //Jupiter lend borrow program
 
 pub fn no_restricted_programs_within_tx(
     instruction_sysvar_account_info: &AccountInfo,
@@ -196,7 +196,7 @@ pub fn no_restricted_programs_within_tx(
 }
 ```
 
-Basically the key to bypassing this restriction depends on the fact that the instruction sysvar only holds the instructions at the stack depth of 1, that is, the top level instructions in a solana transaction. Put a jupr81 instruction at the top level next to a Kamino repay, and tx_includes_restricted_programs finds it → TransactionIncludesRestrictedPrograms. A naïve one-transaction Kamino→Jupiter refinance is dead on arrival.
+Basically the key to bypassing this restriction depends on the fact that the instruction sysvar only holds the instructions at the stack depth of 1, that is, the top level instructions in a solana transaction. Put an instruction involving the jupiter lend borrow program `jupr81..` at the top level next to a Kamino repay, and `tx_includes_restricted_programs` finds it then throws  `TransactionIncludesRestrictedPrograms`. A top level naive one-transaction Kamino→Jupiter refinance using the typescript SDK is dead on arrival.
 
 So if we write a solana program that implements the same refinancing logic then the instruction that invokes the restricted jupiter borrow program (jupr81...) for either creating a new jupiter position in the same transaction that a kamino loan has been repayed will become an inner instruction with a stack depth of two, `tx_includes_restricted_programs` returns false, `no_restricted_programs_within_tx` returns true, the constraint passes, and the whole reifnance flow proceeds.
 
@@ -291,7 +291,7 @@ pub trait Withdraw<'info> {
 }
 ```
 
-Then we implement the method for each protoco, in this case we implement the logic for depositing into kamino finance and jupiter lend and for the rest of the3 actions -> initialize (position), borrow, withdraw, repay,
+Then we implement the method for each protoco, in this case we implement the logic for depositing into kamino finance and jupiter lend and for the rest of the 3 actions -> initialize (position), borrow, withdraw, repay,
 
 ```rust 
 // Jupiter Lend implementation
@@ -898,23 +898,74 @@ Refinancing in the other direction is mostly the same so we are not going to go 
 
 Two clocks drift on a mainnet fork, and both surface as opaque math errors.
 
-An oracle cloned once is frozen at clone time while the network clock advances, so its price ages out and the protocols reject it, that's why `prepare()` **streams** the scope feeds (`surfnet_streamAccount`) instead of trusting the lazy clone. The subtler one is the surfnet's own clock: it ticks forward on its own (~one slot per 400 ms) and over a long session runs *ahead* of the forked accounts, at which point the time-based interest math overflows — Kamino returns `MathOverflow` (`last_update.rs`), Jupiter returns `LIBRARY_MATH_ERROR`, which the SDK reports as the unhelpful `No return data found in logs`. It appears two ways:
+An oracle cloned once is frozen at clone time while the network clock advances, so its price ages out and the protocols reject it, that's why `prepare()` **streams** the scope feeds (`surfnet_streamAccount`) instead of relying on the lazy clone. 
 
-- **Too fresh** — right after startup the surfnet slot can be briefly *behind* a just-cloned reserve's `last_update`, so `slots_elapsed` underflows. This clears within a few slots, so the flow scripts **retry** it automatically.
-- **Drifted** — after a long session the clock is too far *ahead*. `surfnet_timeTravel` only moves forward and `surfnet_resetNetwork` wipes the deployed program, so the fix is to **restart** the surfnet (it re-runs the deploy runbook) for a fresh clock.
+The subtler error is the surfnet's own clock: it ticks forward on its own (~one slot per 400 ms) and over a long session runs *ahead* of the forked accounts, at which point the time-based interest math overflows - Kamino returns `MathOverflow` [last update](https://github.com/Kamino-Finance/klend/blob/master/programs/klend/src/state/last_update.rs#L84) that is invoked as a check in [lending specific math](https://github.com/Kamino-Finance/klend/blob/67bd6dc7cffd33b789717b75d2c8297ca483758c/programs/klend/src/lending_market/lending_operations.rs#L1800) , Jupiter lend returns `LIBRARY_MATH_ERROR`, which the SDK reports as the `No return data found in logs` error , when it fails to get the current market prices for the supply and borrow token due to the stale slot age from the surfpool instance.
 
-One last operational note: run surfpool against a dedicated RPC — `surfpool start --rpc-url <provider>` — or the free public endpoint will rate-limit the lazy clone and you'll see `Failed to fetch accounts from remote` on transactions that touch many not-yet-cached accounts.
+Here is an except from the jup lend SDK, it throws `no return data found in logs` when it fails to get the exchange prices, that is when the `get_exchange_prices` instruction from the jupiter vaults program `jupr81YtYssSyPt8jbnGuiWon5f6x9TcDEFxYe3Bdzi` fails and returns nothing
 
-## Solution - LITESVM?
-<!-- 
-### LiteSVM: deterministic fixtures
+```ts
+async function getExchangePrices({
+  vaultId,
+  vaultConfig,
+  connection,
+  signer,
+  market
+}) {
+  const program = getVaultsProgram({
+    connection,
+    signer,
+    market
+  });
+  const ix = await program.methods.getExchangePrices().accounts({
+    vaultState: getVaultState(vaultId, market),
+    vaultConfig: getVaultConfig(vaultId, market),
+    supplyTokenReserves: getReserve(
+      vaultConfig.supplyToken,
+      market
+    ),
+    borrowTokenReserves: getReserve(
+      vaultConfig.borrowToken,
+      market
+    )
+  }).instruction();
+  const transaction = new Transaction().add(ix);
+  const latestBlockHash = await connection.getLatestBlockhash();
+  transaction.recentBlockhash = latestBlockHash.blockhash;
+  transaction.feePayer = signer;
+  const raw = await connection.simulateTransaction(transaction);
+  if (raw.value.err && raw.value.err === "InvalidAccountForFee" && signer.toBase58() !== "HEyJLdMfZhhQ7FHCtjD5DWDFNFQhaeAVAsHeWqoY6dSD") {
+    return await getExchangePrices({
+      vaultId,
+      vaultConfig,
+      connection,
+      signer: new PublicKey("HEyJLdMfZhhQ7FHCtjD5DWDFNFQhaeAVAsHeWqoY6dSD"),
+      market
+    });
+  }
+  const returnLog = raw.value.logs?.find(
+    (log) => log.startsWith("Program return:")
+  );
+  if (!returnLog) {
+    let error = new Error("No return data found in logs");
+    error.simulation = raw.value;
+    throw error;
+  }
+```
 
-The full refinance won't reasonably run in LiteSVM — with no lazy cloning you'd have to load six programs plus their programdata and ~60 data accounts and keep every one consistent. So LiteSVM covers the self-contained checks, where its determinism earns its keep. There are two ways to get the fixtures:
+Also right after startup the surfnet slot can be briefly *behind* a just-cloned reserve's `last_update`, so `slots_elapsed` underflows. This clears within a few slots, so we use the surfpool driver (`flow:tx` and the mocha tests, via `retryTimeMath` in `bootstrap.ts`) retries it automatically waiting ~8s for slots to advance before re-running.
 
-- **`scripts/dump-fixtures.ts`** — snapshot mainnet directly: each account as base64 with owner/lamports, each program via `solana program dump`, and the source slot recorded in a manifest.
-- **`surfnet_exportSnapshot`** — have surfpool export the *pre-execution* account state of a specific transaction as JSON, which is exactly the deterministic fixture set for that transaction (reloadable with `surfpool start --snapshot`).
+after a long session the clock is too far *ahead*. `surfnet_timeTravel` only moves forward and `surfnet_resetNetwork` wipes the deployed program, so the fix is to **restart** the surfnet (it re-runs the deploy runbook) for a fresh clock.
 
-Either way, the test loads them and — the critical step — pins the SVM clock to the fixture slot. Kamino computes interest from `slots_elapsed` and validates its scope price against a timestamp, so a clock that doesn't match the fixtures underflows and reverts. Note `Clock` needs all five fields as `bigint`; a bare `new Clock()` throws:
+We can decide to have our tests be more deterministic by dumping all the accounts and programs from mainnet directly into a local SVM instance that its own clock and slot progressions separate from mainnet and using them as fixtures in our tests, free from all the quirks from running on mainnet.
+
+## Solution — LiteSVM?
+
+Every problem stems from the non determinism that happens when we run surfpool tests run against a *live* fork because mainnet keeps moving while your test runs. LiteSVM removes that entirely. It's an in-process SVM with no validator, no network, and no clock of its own: it executes a transaction against exactly the accounts and the `Clock` sysvar you hand it, and does nothing in between. Same inputs in, same bytes out, every run. 
+'
+LiteSVM in-process: no validator, no network, or autonomous clock. So **nothing drifts** (the whole class of `MathOverflow` / `LIBRARY_MATH_ERROR` / `No return data found in logs` ), **mainnet stops being a variable** (a test only fails when *your* logic changed, not because a price moved on mainnet), you can **craft the exact scenario** you need (a reserve at a chosen utilisation, an obligation one lamport from liquidation), etc
+
+The cost is having to manually clone everything so we load every account and program yourself (here, six programs and ~60 accounts), via `scripts/dump-fixtures.ts` The critical step is then pinning the SVM clock to the fixture slot, or Kamino's `slots_elapsed` / scope-timestamp math underflows and reverts
 
 ```ts
 const svm = new LiteSVM().withSplPrograms().withSysvars();
@@ -927,10 +978,11 @@ const res = svm.sendTransaction(tx);        // e.g. a Kamino RefreshReserve
 printLiteSVMResult({ logs: res.logs(), computeUnits: res.computeUnitsConsumed() });
 ```
 
-It prints through the same formatter as the surfpool tests, only sourced from LiteSVM's own logs — byte-identical on every run.
+It prints through the same formatter as the surfpool tests, byte-identical every run. 
 
-> *Screenshot: the LiteSVM printout for the Kamino RefreshReserve executed against dumped fixtures.*
-> ![LiteSVM printout](docs/screenshots/litesvm-refreshreserve.png) -->
+Makin it a great alternative to surfpool for controlled tests in our refinance flow 
+
+Net: **LiteSVM for deterministic, crafted-scenario tests; surfpool for live app-integration; point-in-time capture**
 
 ### Running the whole thing
 
@@ -950,7 +1002,7 @@ npm run print-tx <signature>         # solscan-style dump of any transaction
 
 ## Conclusion
 
-They were discussions largely involving the actions Kamino finance took, some said its against the ethos of permissionless defi, others said its fair game in competition to prevent vampire attack of their user base others 
+They were discussions largely involving the actions Kamino finance took, some said its against the ethos of permissionless defi, others said its fair game in competition to prevent vampire attack of their user base others, both codebases are open source and verifiable 
 
 
 ## References
@@ -970,23 +1022,3 @@ They were discussions largely involving the actions Kamino finance took, some sa
 - <https://x.com/JupiterExchange/status/1994081765036544477?s=20> 
 - <https://x.com/jup_burst/status/1994267490055077907?s=20> 
 
-
-
-
-Do an overlapping collage with the tweets so that we can use it for an article header 
-
-<https://x.com/FabianoSolana/status/1995808380531724542?s=20> - tweet about the matter
-
-<https://x.com/andylinee/status/1995780714776998317?s=20> (find chinese friend and make chinese community version)
-
-<https://x.com/JupiterExchange/status/1994864718063047164?s=20> - refinance tx show
-
-<https://x.com/kashdhanda/status/1995816421516083433?s=20>
-
-<https://x.com/JupiterExchange/status/1994081765036544477?s=20> - refinance ad promo
-
-<https://x.com/jup_burst/status/1994267490055077907?s=20> - refinance infographics
-
-<https://x.com/jupiter_earn/status/1994298265156898929?s=20> - frontend example
-
-<https://x.com/JaxOfWeb3/status/1994315243661524996?s=20> - frontend example
