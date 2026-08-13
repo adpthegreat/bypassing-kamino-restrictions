@@ -2,7 +2,7 @@
 
 This article assumes the reader has a basic understanding of solana architecture and the anchor framework
 
-Back in september 2025 jupiter launched their own lending protocol called [https://jup.ag/lend/earn](jupiter lend) in partnership with fluid, basically a solana rewrite of fluid lend.
+Back in september 2025 jupiter launched their own lending protocol called [jupiter lend](https://jup.ag/lend/earn) in partnership with fluid, basically a solana rewrite of fluid lend.
 
 Some weeks later, they introduced a feature called "Jupiter Refinance" which allowed you to one click migrate/refinance your loans from other lending protocols eg marginfi, kamino, including multiply positions, to jupiter lend, with the value proposition of having higher LTVs and APYs on your loans due to their better architecture and tick based liquidation design.
 
@@ -1002,7 +1002,7 @@ npm run print-tx <signature>         # solscan-style dump of any transaction
 
 ## Conclusion
 
-They were discussions largely involving the actions Kamino finance took, some said its against the ethos of permissionless defi, others said its fair game in competition to prevent vampire attack of their user base others, both codebases are open source and verifiable 
+They were discussions largely involving the actions Kamino finance took, some said its against the ethos of permissionless defi, others said its fair game in competition to prevent vampire attack of their user base others, and great enough, both codebases are open source and verifiable, and in the dark forest of defi, what can be broken, will eventually be broken, and what can be bypassed, will eventually be bypassed.
 
 
 ## References
