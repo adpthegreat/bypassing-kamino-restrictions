@@ -1,5 +1,6 @@
 # Publishes ARTICLE.md (plus the images in docs/) as a GitHub Pages site.
 # Only the article is built, so the Rust/TS sources and README are left out of the site.
+# Requires Settings → Pages → Source set to "GitHub Actions".
 name: Deploy article to GitHub Pages
 
 on:
