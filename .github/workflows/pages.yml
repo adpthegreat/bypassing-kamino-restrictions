@@ -1,0 +1,61 @@
+# Publishes ARTICLE.md (plus the images in docs/) as a GitHub Pages site.
+# Only the article is built, so the Rust/TS sources and README are left out of the site.
+name: Deploy article to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ARTICLE.md
+      - docs/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble site
+        run: |
+          mkdir site
+          cp ARTICLE.md site/index.md
+          cp -r docs site/docs
+          cat > site/_config.yml <<'EOF'
+          title: "Solana Lending Wars: Bypassing Kamino Finance Restricted Programs"
+          description: "How Kamino's restricted-program check works, and how to get around it"
+          theme: jekyll-theme-primer
+          markdown: kramdown
+          kramdown:
+            input: GFM
+            syntax_highlighter: rouge
+          EOF
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./site
+          destination: ./_site
+
+      - uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
